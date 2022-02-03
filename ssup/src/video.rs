@@ -36,7 +36,8 @@ pub struct VideoSubmitForm {
     /// 分P
     videos: Vec<VideoPart>,
     /// 秒为单位的定时投稿时间
-    dtime: Option<i32>,
+    #[serde(rename = "dtime")]
+    display_time: Option<i32>,
     open_subtitle: bool,
 }
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::video::VideoPart;
-use serde::{Deserialize, Serialize};
+use ssup::video::VideoPart;
+use serde::{Serialize, Deserialize};
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -28,5 +28,4 @@ pub enum ConfigVideoPart {
 }
 
 #[derive(Deserialize)]
-pub struct VideoTemplate {
-}
+pub struct VideoTemplate {}
