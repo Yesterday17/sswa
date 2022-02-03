@@ -41,8 +41,8 @@ impl Credential {
     pub async fn from_qrcode(value: Value) -> anyhow::Result<Self> {
         #[derive(Deserialize, Debug)]
         pub struct ResponseData {
-            pub code: i32,
-            pub data: ResponseValue,
+            code: i32,
+            data: ResponseValue,
             // message: String,
             // ttl: u8,
         }

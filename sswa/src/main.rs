@@ -1,12 +1,16 @@
-use ssup::Client;
+use ssup::{Client, Credential};
 use ssup::UploadLine;
 
 pub mod config;
 
 #[tokio::main]
-async fn main() {
-    let client = Client::new(UploadLine::kodo());
-    client.upload(&[]).await;
+async fn main() -> anyhow::Result<()> {
+    let mut client = Client::new(UploadLine::kodo());
+    let qrcode = Credential::get_qrcode().await?;
+    let credential = Credential::from_qrcode(qrcode).await?;
+    client.load_credential(&credential);
+
+    Ok(())
 }
 
 // 加载配置
