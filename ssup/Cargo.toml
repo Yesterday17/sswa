@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # http request
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+cookie = "0.15.1"
 cookie_store = "0.15.0"
 reqwest_cookie_store = "0.2.0"
 reqwest-middleware = "0.1.1"

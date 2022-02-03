@@ -1,10 +1,14 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use cookie::Cookie;
 use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::Url;
 use reqwest_cookie_store::CookieStoreMutex;
 use crate::config::Config;
 use serde::{Deserialize, Serialize};
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use crate::constants::USER_AGENT;
 use crate::line::UploadLine;
 use crate::video::VideoPart;
@@ -42,8 +46,26 @@ impl Client {
         Ok(Self::new(UploadLine::auto().await?))
     }
 
-    pub fn load_config(&mut self, config: &Config) {
-        //
+    /// 加载配置
+    pub async fn load_config(&mut self, config: &Config) -> anyhow::Result<()> {
+        // 读取用户帐号信息
+        // TODO： 解密
+        let ref account = config.config.account_path;
+        let mut account = File::open(account).await?;
+        let mut str = String::new();
+        account.read_to_string(&mut str).await?;
+        self.load_login_info(&toml::from_str(&str)?);
+
+        Ok(())
+    }
+
+    /// 加载 LoginInfo 进入 Client
+    fn load_login_info(&mut self, info: &LoginInfo) {
+        let mut store = self.cookie_store.lock().unwrap();
+        let link = Url::parse("https://bilibili.com").unwrap();
+        for cookie in &info.cookie_info.cookies {
+            store.insert_raw(&cookie.to_cookie(), &link).unwrap();
+        }
     }
 
     /// 上传多个分P，返回分P列表
@@ -78,11 +100,33 @@ impl Client {
     }
 }
 
+/// 存储用户的登录信息
 #[derive(Serialize, Deserialize)]
 struct LoginInfo {
-    pub cookie_info: serde_json::Value,
+    pub cookie_info: CookieInfo,
     pub sso: Vec<String>,
     pub token_info: TokenInfo,
+}
+
+/// 存储 Cookie 信息
+#[derive(Serialize, Deserialize)]
+struct CookieInfo {
+    cookies: Vec<CookieEntry>,
+}
+
+/// Cookie 项
+#[derive(Serialize, Deserialize)]
+struct CookieEntry {
+    name: String,
+    value: String,
+}
+
+impl CookieEntry {
+    fn to_cookie(&self) -> Cookie {
+        Cookie::build(self.name.clone(), self.value.clone())
+            .domain("bilibili.com")
+            .finish()
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

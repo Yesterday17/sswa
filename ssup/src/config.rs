@@ -11,8 +11,11 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize)]
 pub struct ShushuConfig {
+    /// 手动选择线路
     pub line: String,
+    /// 用户帐号所在路径
     pub account_path: PathBuf,
+    /// 加密用户帐号的密码
     pub account_pass: Option<String>,
 }
 
