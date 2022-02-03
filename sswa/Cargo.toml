@@ -1,0 +1,12 @@
+[package]
+name = "sswa"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ssup = { path = "../ssup" }
+
+clap = { version = "3.0.14", features = ["derive"] }
+directories-next = "2.0.0"
+
+tokio = { version = "1", features = ["full"] }
