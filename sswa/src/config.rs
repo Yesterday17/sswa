@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use ssup::video::VideoPart;
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -9,7 +9,7 @@ pub struct Config {
     pub template: HashMap<String, VideoTemplate>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 pub struct ShushuConfig {
     /// 手动选择线路
     pub line: String,
