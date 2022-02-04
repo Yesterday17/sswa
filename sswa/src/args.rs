@@ -1,11 +1,12 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 use clap::Parser;
 use anni_clap_handler::{Context, Handler, handler};
+use anyhow::bail;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use ssup::Credential;
+use ssup::{Client, Credential, UploadLine};
 use crate::config::Config;
+use crate::template::VideoTemplate;
 
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
@@ -44,20 +45,8 @@ impl Handler for Args {
             Err(_) => Config::new(),
         };
 
-        // 读取用户帐号信息
-        let account: HashMap<String, Credential> = match File::open(&config.account_path).await {
-            Ok(mut account) => {
-                // TODO: password
-                let mut account_str = String::new();
-                account.read_to_string(&mut account_str).await?;
-                toml::from_str(&account_str)?
-            }
-            Err(_) => HashMap::new(),
-        };
-
         ctx.insert(config_root);
         ctx.insert(config);
-        ctx.insert(account);
         Ok(())
     }
 
@@ -99,15 +88,53 @@ pub struct SsUploadCommand {
     #[clap(short, long)]
     template: String,
 
-    /// 可选的投稿帐号
+    /// 投稿帐号
     #[clap(long)]
-    account: Option<String>,
+    account: String,
 
     /// 待投稿的视频
     videos: Vec<PathBuf>,
 }
 
+impl SsUploadCommand {
+    /// 尝试导入用户凭据，失败时则以该名称创建新的凭据
+    async fn credential(&self, root: &PathBuf) -> anyhow::Result<Credential> {
+        let account = root.join("accounts").join(format!("{}.bin", self.account));
+        if account.exists() {
+            // 凭据存在，读取并返回
+            let mut file = File::open(account).await?;
+            let mut account_str = String::new();
+            file.read_to_string(&mut account_str).await?;
+            let account = toml::from_str(&account_str)?;
+
+            // TODO: 验证登录是否有效
+
+            Ok(account)
+        } else {
+            // 凭据不存在，新登录
+            todo!()
+        }
+    }
+
+    /// 尝试导入视频模板
+    async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
+        let template = root.join("templates").join(format!("{}.toml", self.account));
+        if !template.exists() {
+            bail!("Template not found!");
+        }
+
+        let mut file = File::open(template).await?;
+        let mut template_str = String::new();
+        file.read_to_string(&mut template_str).await?;
+        Ok(toml::from_str(&template_str)?)
+    }
+}
+
 #[handler(SsUploadCommand)]
-async fn handle_upload() -> anyhow::Result<()> {
+async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow::Result<()> {
+    let client = Client::new(UploadLine::auto().await?, this.credential(config_root).await?);
+    let parts = client.upload(&this.videos).await?;
+    client.submit(this.template(&config_root).await?
+        .into_submit_form(parts).await?).await?;
     Ok(())
 }

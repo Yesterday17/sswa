@@ -1,4 +1,4 @@
-use ssup::video::{Subtitle, VideoSubmitForm};
+use ssup::video::{Subtitle, VideoPart, VideoSubmitForm};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -20,8 +20,8 @@ pub struct VideoTemplate {
 }
 
 impl VideoTemplate {
-    pub async fn into_submit(self) -> VideoSubmitForm {
-        VideoSubmitForm {
+    pub async fn into_submit_form(self, parts: Vec<VideoPart>) -> anyhow::Result<VideoSubmitForm> {
+        Ok(VideoSubmitForm {
             copyright: match &self.forward_source {
                 Some(source) if !source.is_empty() => 2,
                 _ => 1,
@@ -38,9 +38,9 @@ impl VideoTemplate {
                 lan: "".to_string(),
             },
             tag: self.tags.join(","),
-            videos: vec![],
+            videos: parts,
             display_time: None,
             open_subtitle: false,
-        }
+        })
     }
 }

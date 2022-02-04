@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use ssup::video::{VideoPart};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -21,12 +20,4 @@ impl Config {
             account_pass: None,
         }
     }
-}
-
-/// 分P描述格式
-pub enum ConfigVideoPart {
-    /// 简单分P描述，根据视频文件名自动生成
-    Simple(PathBuf),
-    /// 详细分P描述，需要手动填写各字段
-    Detailed(VideoPart),
 }
