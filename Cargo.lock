@@ -3,6 +3,27 @@
 version = 3
 
 [[package]]
+name = "anni-clap-handler"
+version = "0.1.0"
+source = "git+https://github.com/ProjectAnni/anni#c4fbd6bb745d56db5673261ebd98d22c9274a440"
+dependencies = [
+ "anni-clap-handler-derive",
+ "anyhow",
+ "async-trait",
+]
+
+[[package]]
+name = "anni-clap-handler-derive"
+version = "0.1.0"
+source = "git+https://github.com/ProjectAnni/anni#c4fbd6bb745d56db5673261ebd98d22c9274a440"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1184,6 +1205,7 @@ dependencies = [
 name = "sswa"
 version = "0.1.0"
 dependencies = [
+ "anni-clap-handler",
  "anyhow",
  "clap",
  "directories-next",

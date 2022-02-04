@@ -1,16 +1,13 @@
-use ssup::{Client, Credential};
-use ssup::UploadLine;
+use crate::args::Args;
+use clap::Parser;
+use anni_clap_handler::Handler;
 
 pub mod config;
+mod args;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut client = Client::new(UploadLine::kodo());
-    let qrcode = Credential::get_qrcode().await?;
-    let credential = Credential::from_qrcode(qrcode).await?;
-    client.load_credential(&credential);
-
-    Ok(())
+    Args::parse().run().await
 }
 
 // 加载配置
