@@ -4,7 +4,7 @@ use anni_clap_handler::{Context, Handler, handler};
 use anyhow::bail;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use ssup::{Client, Credential, UploadLine};
+use ssup::{Client, Credential};
 use crate::config::Config;
 use crate::template::VideoTemplate;
 
@@ -137,9 +137,9 @@ impl SsUploadCommand {
 
 #[handler(SsUploadCommand)]
 async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow::Result<()> {
-    let client = Client::new(UploadLine::auto().await?, this.credential(config_root).await?);
+    let client = Client::auto(this.credential(config_root).await?).await?;
     let parts = client.upload(&this.videos).await?;
     client.submit(this.template(&config_root).await?
-        .into_submit_form(parts).await?).await?;
+        .into_video(parts).await?).await?;
     Ok(())
 }

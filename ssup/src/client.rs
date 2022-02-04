@@ -8,7 +8,7 @@ use reqwest_cookie_store::CookieStoreMutex;
 use crate::constants::USER_AGENT;
 use crate::credential::Credential;
 use crate::line::UploadLine;
-use crate::video::{VideoPart, VideoSubmitForm};
+use crate::video::{VideoPart, Video};
 
 pub struct Client {
     pub client: reqwest::Client,
@@ -50,7 +50,7 @@ impl Client {
     }
 
     /// 加载 LoginInfo 进入 Client
-    pub fn load_credential(&mut self) {
+    fn load_credential(&mut self) {
         let mut store = self.cookie_store.lock().unwrap();
         let link = Url::parse("https://bilibili.com").unwrap();
         for cookie in &self.credential.cookie_info.cookies {
@@ -89,7 +89,8 @@ impl Client {
         Ok(parts)
     }
 
-    pub async fn submit(&self, form: VideoSubmitForm) -> anyhow::Result<()> {
+    /// 投稿
+    pub async fn submit(&self, form: Video) -> anyhow::Result<()> {
         let ret: serde_json::Value = reqwest::Client::builder()
             .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/63.0.3239.108")
             .timeout(Duration::new(60, 0))

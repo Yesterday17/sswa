@@ -1,21 +1,8 @@
 use serde::{Serialize, Deserialize};
 
 /// 视频
-#[derive(Serialize, Deserialize)]
-pub struct Video {
-    pub videos: Vec<VideoPart>,
-}
-
-/// 分P
-#[derive(Serialize, Deserialize)]
-pub struct VideoPart {
-    pub title: Option<String>,
-    pub filename: String,
-    pub desc: String,
-}
-
 #[derive(Serialize)]
-pub struct VideoSubmitForm {
+pub struct Video {
     /// 1 为自制，2 为转载
     pub copyright: u8,
     pub source: String,
@@ -45,4 +32,12 @@ pub struct VideoSubmitForm {
 pub struct Subtitle {
     pub open: i8,
     pub lan: String,
+}
+
+/// 分P
+#[derive(Serialize, Deserialize)]
+pub struct VideoPart {
+    pub title: Option<String>,
+    pub filename: String,
+    pub desc: String,
 }
