@@ -5,6 +5,7 @@ use anyhow::bail;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use ssup::{Client, Credential};
+use ssup::constants::set_useragent;
 use crate::config::Config;
 use crate::template::VideoTemplate;
 
@@ -13,6 +14,10 @@ pub struct Args {
     /// 配置文件所在的目录，留空时默认通过 directories-next 获取
     #[clap(short, long)]
     config_root: Option<PathBuf>,
+
+    /// 手动指定投稿时的 User-Agent
+    #[clap(long = "ua")]
+    user_agent: Option<String>,
 
     /// 执行的子命令
     #[clap(subcommand)]
@@ -44,6 +49,11 @@ impl Handler for Args {
             }
             Err(_) => Config::new(),
         };
+
+        // 设置 User-Agent
+        if let Some(ref user_agent) = self.user_agent {
+            set_useragent(user_agent.to_string());
+        }
 
         ctx.insert(config_root);
         ctx.insert(config);

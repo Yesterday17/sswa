@@ -42,7 +42,7 @@ pub struct UploadLine {
 }
 
 impl UploadLine {
-    pub async fn pre_upload<T, P>(&self, client: &Client, file_path: P, total_size: usize) -> anyhow::Result<T>
+    pub(crate) async fn pre_upload<T, P>(&self, client: &Client, file_path: P, total_size: usize) -> anyhow::Result<T>
         where T: DeserializeOwned, P: AsRef<Path> {
         let file_name = file_path.as_ref().file_name().ok_or("No filename").unwrap().to_str();
 
@@ -66,7 +66,7 @@ impl UploadLine {
         )
     }
 
-    pub async fn upload<P>(&self, client: &Client, file_path: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
+    pub(crate) async fn upload<P>(&self, client: &Client, file_path: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
         where P: AsRef<Path> {
         match self.os {
             Uploader::Upos => {
