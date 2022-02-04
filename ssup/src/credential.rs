@@ -94,13 +94,13 @@ impl Credential {
 
 /// 存储 Cookie 信息
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CookieInfo {
+pub(crate) struct CookieInfo {
     pub(crate) cookies: Vec<CookieEntry>,
 }
 
 /// Cookie 项
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CookieEntry {
+pub(crate) struct CookieEntry {
     name: String,
     value: String,
 }
@@ -114,7 +114,7 @@ impl CookieEntry {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct TokenInfo {
+pub(crate) struct TokenInfo {
     pub(crate) access_token: String,
     expires_in: u32,
     mid: u32,

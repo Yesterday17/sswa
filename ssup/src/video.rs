@@ -18,7 +18,7 @@ pub struct Video {
     /// 动态文本
     pub dynamic: String,
     pub subtitle: Subtitle,
-    /// 由 [,] 连接的 Tag
+    /// 由 `,` 连接的 Tag
     pub tag: String,
     /// 分P
     pub videos: Vec<VideoPart>,

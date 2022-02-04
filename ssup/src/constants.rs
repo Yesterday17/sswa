@@ -5,7 +5,7 @@ lazy_static! {
     pub(crate) static ref USER_AGENT: RwLock<String> = RwLock::new(String::from("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/63.0.3239.108"));
 }
 
-/// 设置 ssup 所有请求中使用的 User-Agent
+/// 设置所有请求中使用的 User-Agent
 pub fn set_useragent(user_agent: String) {
     *USER_AGENT.write() = user_agent;
 }

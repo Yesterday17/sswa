@@ -5,6 +5,6 @@ pub mod constants;
 mod line;
 mod credential;
 
-pub use client::*;
-pub use line::*;
-pub use credential::*;
+pub use client::Client;
+pub use line::UploadLine;
+pub use credential::Credential;

@@ -31,6 +31,7 @@ impl Uploader {
     }
 }
 
+/// 上传线路
 #[derive(Deserialize)]
 pub struct UploadLine {
     os: Uploader,

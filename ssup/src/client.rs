@@ -10,6 +10,7 @@ use crate::credential::Credential;
 use crate::line::UploadLine;
 use crate::video::{VideoPart, Video};
 
+/// 上传使用的客户端
 pub struct Client {
     pub client: reqwest::Client,
     cookie_store: Arc<CookieStoreMutex>,
