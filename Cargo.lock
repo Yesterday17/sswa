@@ -1198,7 +1198,6 @@ dependencies = [
  "serde_urlencoded",
  "thiserror",
  "tokio",
- "toml",
 ]
 
 [[package]]
@@ -1212,6 +1211,7 @@ dependencies = [
  "serde",
  "ssup",
  "tokio",
+ "toml",
 ]
 
 [[package]]

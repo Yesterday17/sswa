@@ -20,23 +20,19 @@ description = '''片源：RabbitC
 翻译：{{translators}}
 校对：{{jiaodui}}
 时间轴：{{subtitle}}'''
-# 投稿类型，自制=original，转载=forwarded
-type = "forwarded"
-# 转载来源，自制时该字段无效
-source = "765.million"
+# 转载来源，该自动存在时以转载形式投稿，否则投成自制
+forward-source = "765.million"
 # 投稿分区
 tid = 152
-# 自动生成封面，与下文的封面图片路径二选一
-cover.auto = false
-# 封面图片路径，当指定路径时优先使用该路径中的图片
-cover.path = "./cover.jpg"
+# 封面图片路径，留空表示自动获取（TODO）
+cover = "./cover.jpg"
 # 动态文本
 dynamic-text = ""
 # 标签
 tags = ["田所梓", "山崎遥", "麻仓桃", "偶像大师百万广播"]
-# 字幕
+# 字幕（TODO）
 subtitle = { open = false, lang = "zh-cn" }
-# 前缀视频，在投稿时自动添加在选中视频**前面**
+# 前缀视频，在投稿时自动添加在选中视频**前面**（TODO）
 video-prefix = []
-# 后缀视频，在投稿时自动添加在选中视频**后面**
+# 后缀视频，在投稿时自动添加在选中视频**后面**（TODO）
 video-suffix = []

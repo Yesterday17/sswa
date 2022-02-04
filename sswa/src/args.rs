@@ -1,6 +1,11 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use clap::Parser;
 use anni_clap_handler::{Context, Handler, handler};
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
+use ssup::Credential;
+use crate::config::Config;
 
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
@@ -16,6 +21,7 @@ pub struct Args {
 #[anni_clap_handler::async_trait]
 impl Handler for Args {
     async fn handle_command(&mut self, ctx: &mut Context) -> anyhow::Result<()> {
+        // 初始化配置文件目录
         let config_root = self.config_root.as_deref().and_then(|path| {
             if path.is_absolute() {
                 Some(path.to_path_buf())
@@ -27,7 +33,31 @@ impl Handler for Args {
             .config_dir()
             .to_path_buf()
         );
+
+        // 初始化读取配置文件
+        let config: Config = match File::open(config_root.join("config.toml")).await {
+            Ok(mut config) => {
+                let mut config_str = String::new();
+                config.read_to_string(&mut config_str).await?;
+                toml::from_str(&config_str)?
+            }
+            Err(_) => Config::new(),
+        };
+
+        // 读取用户帐号信息
+        let account: HashMap<String, Credential> = match File::open(&config.account_path).await {
+            Ok(mut account) => {
+                // TODO: password
+                let mut account_str = String::new();
+                account.read_to_string(&mut account_str).await?;
+                toml::from_str(&account_str)?
+            }
+            Err(_) => HashMap::new(),
+        };
+
         ctx.insert(config_root);
+        ctx.insert(config);
+        ctx.insert(account);
         Ok(())
     }
 
@@ -41,7 +71,7 @@ pub enum SsCommand {
     /// 输出配置文件所在路径
     Config(SsConfigCommand),
     /// 用户帐号相关功能
-    Credential(SsCredentialCommand),
+    Account(SsAccountCommand),
     /// 上传视频相关功能
     Upload(SsUploadCommand),
 }
@@ -56,10 +86,10 @@ async fn handle_config(config_root: &PathBuf) -> anyhow::Result<()> {
 }
 
 #[derive(Parser, Debug, Clone)]
-pub struct SsCredentialCommand;
+pub struct SsAccountCommand;
 
-#[handler(SsCredentialCommand)]
-async fn handle_credential() -> anyhow::Result<()> {
+#[handler(SsAccountCommand)]
+async fn handle_account() -> anyhow::Result<()> {
     Ok(())
 }
 
