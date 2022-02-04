@@ -88,6 +88,11 @@ pub struct SsUploadCommand {
     #[clap(short, long)]
     template: String,
 
+    /// 投稿模板对应的变量文件
+    /// 未指定该字段时会要求用户输入对应的变量
+    #[clap(short, long = "var")]
+    variables: Option<PathBuf>,
+
     /// 投稿帐号
     #[clap(long)]
     account: String,

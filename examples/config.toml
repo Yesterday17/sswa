@@ -1,38 +1,6 @@
-#
-# 基本配置
-#
-[config]
 # 投稿线路
 line = "kodo"
 # 帐号文件存放的路径，与该配置文件相对路径
 account-path = "login.bin"
 # 帐号文件的加密密钥（未实现）
 account-pass = "114514"
-
-#
-# 视频投稿模板
-#
-[templates."million-radio"]
-# 标题（模板）
-title = "【字幕】【偶像大师百万广播{{num}}回】{{title}}【MillionRADIO】"
-# 描述
-description = '''片源：RabbitC
-翻译：{{translators}}
-校对：{{jiaodui}}
-时间轴：{{subtitle}}'''
-# 转载来源，该自动存在时以转载形式投稿，否则投成自制
-forward-source = "765.million"
-# 投稿分区
-tid = 152
-# 封面图片路径，留空表示自动获取（TODO）
-cover = "./cover.jpg"
-# 动态文本
-dynamic-text = ""
-# 标签
-tags = ["田所梓", "山崎遥", "麻仓桃", "偶像大师百万广播"]
-# 字幕（TODO）
-subtitle = { open = false, lang = "zh-cn" }
-# 前缀视频，在投稿时自动添加在选中视频**前面**（TODO）
-video-prefix = []
-# 后缀视频，在投稿时自动添加在选中视频**后面**（TODO）
-video-suffix = []
