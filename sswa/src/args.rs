@@ -104,7 +104,7 @@ pub struct SsUploadCommand {
     variables: Option<PathBuf>,
 
     /// 投稿帐号
-    #[clap(long)]
+    #[clap(short = 'u', long = "user")]
     account: String,
 
     /// 待投稿的视频

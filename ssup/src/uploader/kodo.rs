@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -12,7 +12,7 @@ use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
 use tokio::fs::File;
 use tokio::sync::mpsc::Sender;
-use crate::constants::USER_AGENT;
+use crate::constants::{CONCURRENCY, USER_AGENT};
 use crate::uploader::utils::read_chunk;
 use crate::video::VideoPart;
 
@@ -23,7 +23,7 @@ pub struct Kodo {
 }
 
 impl Kodo {
-    pub async fn from(bucket: Bucket) -> Result<Self> {
+    pub async fn from(bucket: Bucket) -> anyhow::Result<Self> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -47,7 +47,7 @@ impl Kodo {
         })
     }
 
-    pub async fn upload<P>(self, path: P, sx: Sender<usize>) -> Result<VideoPart>
+    pub async fn upload<P>(self, path: P, sx: Sender<usize>) -> anyhow::Result<VideoPart>
         where P: AsRef<Path> {
         let file = File::open(path.as_ref()).await?;
         let total_size = file.metadata().await?.len();
@@ -77,7 +77,7 @@ impl Kodo {
                     len,
                 ))
             })
-            .buffer_unordered(3);
+            .buffer_unordered(*CONCURRENCY.read());
         tokio::pin!(stream);
         while let Some((part, size)) = stream.try_next().await? {
             parts.push(part);
@@ -126,7 +126,6 @@ impl Kodo {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
 struct Ctx {
     index: usize,
     ctx: String,

@@ -1,6 +1,5 @@
 use anyhow::{anyhow, bail};
 use futures::{Stream, StreamExt, TryStreamExt};
-use reqwest::header;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
@@ -10,7 +9,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
-use crate::constants::USER_AGENT;
+use crate::constants::{CONCURRENCY, USER_AGENT};
 use crate::uploader::utils::read_chunk;
 use crate::video::VideoPart;
 
@@ -45,26 +44,23 @@ pub struct Protocol<'a> {
 
 impl Upos {
     pub async fn from(bucket: Bucket) -> anyhow::Result<Self> {
-        let mut headers = header::HeaderMap::new();
-        headers.insert("X-Upos-Auth", header::HeaderValue::from_str(&bucket.auth)?);
         let client = reqwest::Client::builder()
             .user_agent(USER_AGENT.read().as_str())
-            .default_headers(headers)
             .timeout(Duration::new(300, 0))
             .build()
             .unwrap();
         let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
         let client = ClientBuilder::new(client)
-            // Retry failed requests.
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))
             .build();
         let url = format!(
             "https:{}/{}",
             bucket.endpoint,
             bucket.upos_uri.replace("upos://", "")
-        ); // 视频上传路径
+        );
         let ret: serde_json::Value = client
             .post(format!("{url}?uploads&output=json"))
+            .header("X-Upos-Auth", &bucket.auth)
             .send()
             .await?
             .json()
@@ -112,7 +108,7 @@ impl Upos {
                     len,
                 ))
             })
-            .buffer_unordered(3);
+            .buffer_unordered(*CONCURRENCY.read());
         Ok(stream)
     }
 

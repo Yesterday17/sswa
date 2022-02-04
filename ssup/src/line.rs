@@ -66,7 +66,9 @@ impl UploadLine {
         )
     }
 
-    pub(crate) async fn upload<P>(&self, client: &Client, file_path: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
+    pub(crate) async fn
+
+    upload<P>(&self, client: &Client, file_path: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
         where P: AsRef<Path> {
         match self.os {
             Uploader::Upos => {

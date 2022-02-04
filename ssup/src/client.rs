@@ -12,7 +12,7 @@ use crate::video::{VideoPart, Video};
 
 /// 上传使用的客户端
 pub struct Client {
-    pub client: reqwest::Client,
+    pub(crate) client: reqwest::Client,
     cookie_store: Arc<CookieStoreMutex>,
 
     line: UploadLine,
@@ -97,7 +97,7 @@ impl Client {
             .timeout(Duration::new(60, 0))
             .build()?
             .post(format!(
-                "http://member.bilibili.com/x/vu/client/add?access_key={}",
+                "https://member.bilibili.com/x/vu/client/add?access_key={}",
                 self.credential.token_info.access_token
             ))
             .json(&form)
@@ -107,7 +107,6 @@ impl Client {
             .await?;
         println!("{}", ret);
         if ret["code"] == 0 {
-            println!("投稿成功");
             // Ok(ret)
             Ok(())
         } else {
