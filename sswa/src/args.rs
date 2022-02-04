@@ -148,7 +148,34 @@ impl SsUploadCommand {
 #[handler(SsUploadCommand)]
 async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow::Result<()> {
     let client = Client::auto(this.credential(config_root).await?).await?;
-    let parts = client.upload(&this.videos).await?;
+    let mut parts = Vec::with_capacity(this.videos.len());
+
+    // 上传分P
+    for video in &this.videos {
+        let (sx, mut rx) = tokio::sync::mpsc::channel(1);
+        let metadata = tokio::fs::metadata(&video).await?;
+        let total_size = metadata.len() as usize;
+
+        let upload = client.upload(video, total_size, sx);
+        tokio::pin!(upload);
+
+        let mut uploaded_size = 0;
+
+        loop {
+            tokio::select! {
+                Some(size) = rx.recv() => {
+                    // 上传进度
+                    uploaded_size += size;
+                }
+                video = &mut upload => {
+                    // 上传完成
+                    parts.push(video?);
+                    break;
+                }
+            }
+        }
+    }
+    // 提交投稿
     client.submit(this.template(&config_root).await?
         .into_video(parts).await?).await?;
     Ok(())

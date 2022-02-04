@@ -1,10 +1,11 @@
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use anyhow::bail;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
 use reqwest_cookie_store::CookieStoreMutex;
+use tokio::sync::mpsc::Sender;
 use crate::constants::USER_AGENT;
 use crate::credential::Credential;
 use crate::line::UploadLine;
@@ -59,35 +60,10 @@ impl Client {
         }
     }
 
-    /// 上传多个分P，返回分P列表
-    pub async fn upload(&self, videos: &[PathBuf]) -> anyhow::Result<Vec<VideoPart>> {
-        let mut parts = Vec::with_capacity(videos.len());
-
-        for video in videos {
-            let (sx, mut rx) = tokio::sync::mpsc::channel(1);
-            let metadata = tokio::fs::metadata(&video).await?;
-            let total_size = metadata.len() as usize;
-
-            let upload = self.line.upload(self, video, total_size, sx);
-            tokio::pin!(upload);
-
-            let mut uploaded_size = 0;
-
-            loop {
-                tokio::select! {
-                    Some(size) = rx.recv() => {
-                        // 上传进度
-                        uploaded_size += size;
-                    }
-                    video = &mut upload => {
-                        // 上传完成
-                        parts.push(video?);
-                        break;
-                    }
-                }
-            }
-        }
-        Ok(parts)
+    /// 上传单个分P
+    pub async fn upload<P>(&self, video: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
+        where P: AsRef<Path> {
+        self.line.upload(self, video, total_size, sx).await
     }
 
     /// 投稿
