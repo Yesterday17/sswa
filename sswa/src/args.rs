@@ -69,8 +69,6 @@ impl Handler for Args {
 pub enum SsCommand {
     /// 输出配置文件所在路径
     Config(SsConfigCommand),
-    /// 用户帐号相关功能
-    Account(SsAccountCommand),
     /// 上传视频相关功能
     Upload(SsUploadCommand),
 }
@@ -81,14 +79,6 @@ pub struct SsConfigCommand;
 #[handler(SsConfigCommand)]
 async fn handle_config(config_root: &PathBuf) -> anyhow::Result<()> {
     print!("{}", config_root.display());
-    Ok(())
-}
-
-#[derive(Parser, Debug, Clone)]
-pub struct SsAccountCommand;
-
-#[handler(SsAccountCommand)]
-async fn handle_account() -> anyhow::Result<()> {
     Ok(())
 }
 
@@ -151,8 +141,6 @@ impl SsUploadCommand {
 
 #[handler(SsUploadCommand)]
 async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
-    let template = this.template(&config_root).await?;
-    template.into_video(vec![], "".into()).await?;
     let progress = indicatif::MultiProgress::new();
 
     // 用户登录检查
