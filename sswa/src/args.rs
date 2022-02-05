@@ -134,7 +134,7 @@ impl SsUploadCommand {
 
     /// 尝试导入视频模板
     async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
-        let template = root.join("templates").join(format!("{}.toml", self.account));
+        let template = root.join("templates").join(format!("{}.toml", self.template));
         if !template.exists() {
             bail!("Template not found!");
         }
@@ -176,7 +176,6 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow:
     }
 
     // 提交投稿
-    // client.submit(this.template(&config_root).await?
-    //     .into_video(parts).await?).await
-    Ok(())
+    client.submit(this.template(&config_root).await?
+        .into_video(parts).await?).await
 }

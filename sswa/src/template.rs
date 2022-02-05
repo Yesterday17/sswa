@@ -2,6 +2,7 @@ use ssup::video::{Subtitle, VideoPart, Video};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct VideoTemplate {
     /// 视频标题
     title: String,
