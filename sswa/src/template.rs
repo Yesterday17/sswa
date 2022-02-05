@@ -21,6 +21,18 @@ pub struct VideoTemplate {
 }
 
 impl VideoTemplate {
+    /// 校验模板字符串
+    pub fn validate(&self) -> anyhow::Result<()> {
+        self.title.to_string()?;
+        self.description.to_string()?;
+        self.dynamic_text.to_string()?;
+
+        if let Some(forward_source) = &self.forward_source {
+            forward_source.to_string()?;
+        }
+        Ok(())
+    }
+
     pub async fn into_video(self, parts: Vec<VideoPart>, cover: String) -> anyhow::Result<Video> {
         Ok(Video {
             copyright: match &self.forward_source {
@@ -28,14 +40,14 @@ impl VideoTemplate {
                 _ => 1,
             },
             source: self.forward_source
-                .and_then(|s| s.into_string().ok())
+                .and_then(|s| s.to_string().ok())
                 .unwrap_or("".into()),
             tid: self.tid,
             cover,
-            title: self.title.into_string()?,
+            title: self.title.to_string()?,
             desc_format_id: 0,
-            desc: self.description.into_string()?,
-            dynamic: self.dynamic_text.into_string()?,
+            desc: self.description.to_string()?,
+            dynamic: self.dynamic_text.to_string()?,
             subtitle: Subtitle {
                 open: 0,
                 lan: "".to_string(),
@@ -52,12 +64,12 @@ impl VideoTemplate {
 struct TemplateString(String);
 
 impl TemplateString {
-    fn into_string(self) -> anyhow::Result<String> {
+    fn to_string(&self) -> anyhow::Result<String> {
         let regex = regex::Regex::new(r"\{\{(.*?)\}\}").unwrap();
         let matches = regex.captures_iter(&self.0)
             .map(|c| c[1].to_string())
             .collect::<Vec<_>>();
-        let mut result = self.0;
+        let mut result = self.0.clone();
         if !matches.is_empty() {
             for variable in matches.iter() {
                 result = result.replace(

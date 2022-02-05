@@ -143,6 +143,10 @@ impl SsUploadCommand {
 async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
     let progress = indicatif::MultiProgress::new();
 
+    // 模板字符串检查
+    let template = this.template(&config_root).await?;
+    template.validate()?;
+
     // 用户登录检查
     let credential = this.credential(config_root).await?;
 
@@ -160,7 +164,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
             "auto" => UploadLine::auto().await?,
             _ => unimplemented!(),
         };
-        p_line.finish_with_message("线路选择完成");
+        p_line.finish_with_message("线路选择完成！");
         Client::new(line, credential)
     };
 
@@ -199,14 +203,18 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         }
     }
 
-    // 提交投稿
-    let p_submit = ProgressBar::new_spinner();
-    p_submit.set_message("投稿中...");
-    let p_submit = progress.add(p_submit);
-    let template = this.template(&config_root).await?;
-    let cover = client.upload_cover(&template.cover).await?;
-    client.submit(template.into_video(parts, cover).await?).await?;
-    p_submit.finish_with_message("投稿成功！");
+    // 上传封面
+    let cover = {
+        let p_cover = ProgressBar::new_spinner();
+        p_cover.set_message("上传封面中…");
+        let p_submit = progress.add(p_cover);
+        let cover = client.upload_cover(&template.cover).await?;
+        p_submit.finish_with_message("封面上传成功！");
+        cover
+    };
 
+    // 提交视频
+    let video = template.into_video(parts, cover).await?;
+    client.submit(video).await?;
     Ok(())
 }
