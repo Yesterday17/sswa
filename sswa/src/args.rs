@@ -4,7 +4,7 @@ use anni_clap_handler::{Context, Handler, handler};
 use anyhow::bail;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::fs;
-use ssup::{Client, Credential};
+use ssup::{Client, Credential, UploadLine};
 use ssup::constants::set_useragent;
 use crate::config::Config;
 use crate::template::VideoTemplate;
@@ -135,6 +135,10 @@ impl SsUploadCommand {
 
     /// 尝试导入视频模板
     async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
+        if let Some(variables) = &self.variables {
+            dotenv::from_path(variables)?;
+        }
+
         let template = root.join("templates").join(format!("{}.toml", self.template));
         if !template.exists() {
             bail!("Template not found!");
@@ -146,10 +150,32 @@ impl SsUploadCommand {
 }
 
 #[handler(SsUploadCommand)]
-async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow::Result<()> {
+async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+    let template = this.template(&config_root).await?;
+    template.into_video(vec![], "".into()).await?;
     let progress = indicatif::MultiProgress::new();
 
-    let client = Client::auto(this.credential(config_root).await?).await?;
+    // 用户登录检查
+    let credential = this.credential(config_root).await?;
+
+    // 线路选择
+    let client = {
+        let p_line = ProgressBar::new_spinner();
+        p_line.set_message("选择线路中…");
+        let p_line = progress.add(p_line);
+        let line = config.line.as_deref().unwrap_or("auto");
+        let line = match line {
+            "kodo" => UploadLine::kodo(),
+            "bda2" => UploadLine::bda2(),
+            "ws" => UploadLine::ws(),
+            "qn" => UploadLine::qn(),
+            "auto" => UploadLine::auto().await?,
+            _ => unimplemented!(),
+        };
+        p_line.finish_with_message("线路选择完成");
+        Client::new(line, credential)
+    };
+
     let mut parts = Vec::with_capacity(this.videos.len());
 
     // 上传分P
@@ -163,9 +189,10 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow:
 
         let mut uploaded_size = 0;
         let pb = ProgressBar::new(total_size as u64);
+        let pb = progress.add(pb);
         pb.set_style(ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"));
-        let pb = progress.add(pb);
+        pb.enable_steady_tick(1000);
 
         loop {
             tokio::select! {
@@ -185,7 +212,13 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow:
     }
 
     // 提交投稿
+    let p_submit = ProgressBar::new_spinner();
+    p_submit.set_message("投稿中...");
+    let p_submit = progress.add(p_submit);
     let template = this.template(&config_root).await?;
     let cover = client.upload_cover(&template.cover).await?;
-    client.submit(template.into_video(parts, cover).await?).await
+    client.submit(template.into_video(parts, cover).await?).await?;
+    p_submit.finish_with_message("投稿成功！");
+
+    Ok(())
 }
