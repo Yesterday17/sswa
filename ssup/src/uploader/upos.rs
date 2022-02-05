@@ -16,13 +16,13 @@ use crate::video::VideoPart;
 
 pub struct Upos {
     client: ClientWithMiddleware,
-    bucket: Bucket,
+    bucket: UposBucket,
     url: String,
     upload_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Bucket {
+pub struct UposBucket {
     chunk_size: usize,
     auth: String,
     endpoint: String,
@@ -44,7 +44,7 @@ pub struct Protocol<'a> {
 }
 
 impl Upos {
-    pub async fn from(bucket: Bucket) -> anyhow::Result<Self> {
+    pub async fn from(bucket: UposBucket) -> anyhow::Result<Self> {
         let mut headers = HeaderMap::new();
         headers.insert("X-Upos-Auth", HeaderValue::from_str(&bucket.auth)?);
         let client = reqwest::Client::builder()

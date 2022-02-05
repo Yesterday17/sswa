@@ -72,7 +72,7 @@ impl Client {
             .client
             .post("https://member.bilibili.com/x/vu/web/cover/up")
             .form(&json!({
-                "cover":  format!("data:image/jpeg;base64,{}", base64::encode(cover)),
+                "cover": format!("data:image/jpeg;base64,{}", base64::encode(cover)),
                 "csrf": csrf,
             }))
             .send()

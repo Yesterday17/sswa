@@ -17,12 +17,12 @@ use crate::video::VideoPart;
 
 pub struct Kodo {
     client: ClientWithMiddleware,
-    bucket: Bucket,
+    bucket: KodoBucket,
     url: String,
 }
 
 impl Kodo {
-    pub async fn from(bucket: Bucket) -> anyhow::Result<Self> {
+    pub async fn from(bucket: KodoBucket) -> anyhow::Result<Self> {
         let mut headers = HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -131,7 +131,7 @@ struct Ctx {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Bucket {
+pub struct KodoBucket {
     bili_filename: String,
     fetch_url: String,
     endpoint: String,

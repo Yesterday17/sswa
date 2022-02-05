@@ -7,8 +7,7 @@ use futures::TryStreamExt;
 use serde_json::json;
 use tokio::sync::mpsc::Sender;
 use crate::client::Client;
-use crate::uploader::kodo::Kodo;
-use crate::uploader::upos::Upos;
+use crate::uploader::*;
 use crate::video::VideoPart;
 
 #[derive(Serialize, Deserialize)]
