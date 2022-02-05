@@ -19,3 +19,4 @@ anyhow = "1"
 log = "0.4.14"
 
 dotenv = "0.15.0"
+indicatif = "0.17.0-rc.2"

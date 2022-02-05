@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use anni_clap_handler::{Context, Handler, handler};
 use anyhow::bail;
+use indicatif::{ProgressBar, ProgressStyle};
 use tokio::fs;
 use ssup::{Client, Credential};
 use ssup::constants::set_useragent;
@@ -146,6 +147,8 @@ impl SsUploadCommand {
 
 #[handler(SsUploadCommand)]
 async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow::Result<()> {
+    let progress = indicatif::MultiProgress::new();
+
     let client = Client::auto(this.credential(config_root).await?).await?;
     let mut parts = Vec::with_capacity(this.videos.len());
 
@@ -159,16 +162,22 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow:
         tokio::pin!(upload);
 
         let mut uploaded_size = 0;
+        let pb = ProgressBar::new(total_size as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"));
+        let pb = progress.add(pb);
 
         loop {
             tokio::select! {
                 Some(size) = rx.recv() => {
                     // 上传进度
                     uploaded_size += size;
+                    pb.set_position(uploaded_size as u64);
                 }
                 video = &mut upload => {
                     // 上传完成
                     parts.push(video?);
+                    pb.finish();
                     break;
                 }
             }
