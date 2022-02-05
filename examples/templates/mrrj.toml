@@ -10,7 +10,7 @@ forward-source = "765.million"
 # 投稿分区
 tid = 152
 # 封面图片路径，留空表示自动获取（TODO）
-cover = "./cover.jpg"
+cover = "./cover.png"
 # 动态文本
 dynamic-text = ""
 # 标签

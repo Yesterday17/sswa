@@ -155,7 +155,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow:
         let metadata = tokio::fs::metadata(&video).await?;
         let total_size = metadata.len() as usize;
 
-        let upload = client.upload(video, total_size, sx);
+        let upload = client.upload_video_part(video, total_size, sx);
         tokio::pin!(upload);
 
         let mut uploaded_size = 0;
@@ -176,6 +176,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow:
     }
 
     // 提交投稿
-    client.submit(this.template(&config_root).await?
-        .into_video(parts).await?).await
+    let template = this.template(&config_root).await?;
+    let cover = client.upload_cover(&template.cover).await?;
+    client.submit(template.into_video(parts, cover).await?).await
 }

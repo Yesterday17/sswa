@@ -5,9 +5,11 @@ use anyhow::bail;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
 use reqwest_cookie_store::CookieStoreMutex;
+use serde_json::json;
+use tokio::fs;
 use tokio::sync::mpsc::Sender;
 use crate::constants::USER_AGENT;
-use crate::credential::Credential;
+use crate::credential::{Credential, ResponseData, ResponseValue};
 use crate::line::UploadLine;
 use crate::video::{VideoPart, Video};
 
@@ -60,8 +62,43 @@ impl Client {
         }
     }
 
+    /// 上传封面
+    pub async fn upload_cover<P>(&self, cover: P) -> anyhow::Result<String>
+        where P: AsRef<Path> {
+        let cover = fs::read(cover).await?;
+
+        let csrf = self.credential.cookie_info.get("bili_jct").unwrap();
+        let response: ResponseData = self
+            .client
+            .post("https://member.bilibili.com/x/vu/web/cover/up")
+            .form(&json!({
+                "cover":  format!("data:image/jpeg;base64,{}", base64::encode(cover)),
+                "csrf": csrf,
+            }))
+            .send()
+            .await?
+            .json()
+            .await?;
+        match &response {
+            ResponseData {
+                data: ResponseValue::Value(value),
+                ..
+            } if value.is_null() => bail!("{response:?}"),
+            ResponseData {
+                data: ResponseValue::Value(value),
+                ..
+            } => return Ok(value["url"]
+                .as_str()
+                .ok_or(anyhow::anyhow!("cover_up error"))?
+                .into()),
+            _ => {
+                unreachable!()
+            }
+        };
+    }
+
     /// 上传单个分P
-    pub async fn upload<P>(&self, video: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
+    pub async fn upload_video_part<P>(&self, video: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
         where P: AsRef<Path> {
         self.line.upload(self, video, total_size, sx).await
     }

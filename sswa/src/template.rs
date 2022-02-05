@@ -13,7 +13,7 @@ pub struct VideoTemplate {
     /// 分区号
     tid: u16,
     /// 封面图片
-    cover: String,
+    pub cover: String,
     /// 动态文本
     dynamic_text: String,
     /// 标签
@@ -21,7 +21,7 @@ pub struct VideoTemplate {
 }
 
 impl VideoTemplate {
-    pub async fn into_video(self, parts: Vec<VideoPart>) -> anyhow::Result<Video> {
+    pub async fn into_video(self, parts: Vec<VideoPart>, cover: String) -> anyhow::Result<Video> {
         Ok(Video {
             copyright: match &self.forward_source {
                 Some(source) if !source.is_empty() => 2,
@@ -29,7 +29,7 @@ impl VideoTemplate {
             },
             source: self.forward_source.unwrap_or("".into()),
             tid: self.tid,
-            cover: self.cover,
+            cover,
             title: self.title,
             desc_format_id: 0,
             desc: self.description,

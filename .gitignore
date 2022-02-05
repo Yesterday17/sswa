@@ -3,3 +3,5 @@
 
 examples/accounts/**/*
 !examples/accounts/.gitkeep
+
+*.png

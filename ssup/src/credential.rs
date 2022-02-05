@@ -39,21 +39,6 @@ impl Credential {
     }
 
     pub async fn from_qrcode(value: Value) -> anyhow::Result<Self> {
-        #[derive(Deserialize, Debug)]
-        pub struct ResponseData {
-            code: i32,
-            data: ResponseValue,
-            // message: String,
-            // ttl: u8,
-        }
-
-        #[derive(Deserialize, Debug)]
-        #[serde(untagged)]
-        pub enum ResponseValue {
-            Login(Credential),
-            Value(serde_json::Value),
-        }
-
         let mut form = json!({
             "appkey": "4409e2ce8ffd12b8",
             "local_id": "0",
@@ -98,6 +83,12 @@ pub(crate) struct CookieInfo {
     pub(crate) cookies: Vec<CookieEntry>,
 }
 
+impl CookieInfo {
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.cookies.iter().find(|entry| entry.name == key).map(|entry| entry.value.as_str())
+    }
+}
+
 /// Cookie 项
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct CookieEntry {
@@ -119,4 +110,19 @@ pub(crate) struct TokenInfo {
     expires_in: u32,
     mid: u32,
     refresh_token: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct ResponseData {
+    pub(crate) code: i32,
+    pub(crate) data: ResponseValue,
+    pub(crate) message: String,
+    ttl: u8,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub(crate) enum ResponseValue {
+    Login(Credential),
+    Value(serde_json::Value),
 }
