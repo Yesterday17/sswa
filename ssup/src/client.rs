@@ -68,10 +68,7 @@ impl Client {
 
     /// 投稿
     pub async fn submit(&self, form: Video) -> anyhow::Result<()> {
-        let ret: serde_json::Value = reqwest::Client::builder()
-            .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/63.0.3239.108")
-            .timeout(Duration::new(60, 0))
-            .build()?
+        let ret: serde_json::Value = self.client
             .post(format!(
                 "https://member.bilibili.com/x/vu/client/add?access_key={}",
                 self.credential.token_info.access_token
@@ -81,7 +78,6 @@ impl Client {
             .await?
             .json()
             .await?;
-        println!("{}", ret);
         if ret["code"] == 0 {
             // Ok(ret)
             Ok(())

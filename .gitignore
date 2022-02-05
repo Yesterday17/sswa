@@ -1,2 +1,5 @@
 /target
 .idea
+
+examples/accounts/**/*
+!examples/accounts/.gitkeep

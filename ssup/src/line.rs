@@ -55,6 +55,7 @@ impl UploadLine {
             "name": file_name,
             "size": total_size,
         });
+        log::debug!("Pre uploading with query: {}", query);
         Ok(client
             .client
             .get(format!("https://member.bilibili.com/preupload?{}", self.query))
@@ -70,6 +71,7 @@ impl UploadLine {
         where P: AsRef<Path> {
         match self.os {
             Uploader::Upos => {
+                log::debug!("Uploading with upos");
                 let bucket = self.pre_upload(client, file_path.as_ref(), total_size).await?;
                 let upos = Upos::from(bucket).await?;
 
@@ -84,6 +86,7 @@ impl UploadLine {
                 upos.get_ret_video_info(&parts, file_path.as_ref()).await
             }
             Uploader::Kodo => {
+                log::debug!("Uploading with kodo");
                 let bucket = self.pre_upload(client, file_path.as_ref(), total_size).await?;
                 Kodo::from(bucket)
                     .await?

@@ -2,8 +2,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use anni_clap_handler::{Context, Handler, handler};
 use anyhow::bail;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
+use tokio::fs;
 use ssup::{Client, Credential};
 use ssup::constants::set_useragent;
 use crate::config::Config;
@@ -41,12 +40,8 @@ impl Handler for Args {
         );
 
         // 初始化读取配置文件
-        let config: Config = match File::open(config_root.join("config.toml")).await {
-            Ok(mut config) => {
-                let mut config_str = String::new();
-                config.read_to_string(&mut config_str).await?;
-                toml::from_str(&config_str)?
-            }
+        let config: Config = match fs::read_to_string(config_root.join("config.toml")).await {
+            Ok(config) => toml::from_str(&config)?,
             Err(_) => Config::new(),
         };
 
@@ -54,6 +49,10 @@ impl Handler for Args {
         if let Some(ref user_agent) = self.user_agent {
             set_useragent(user_agent.to_string());
         }
+
+        // 创建目录
+        let _ = fs::create_dir(config_root.join("templates")).await;
+        let _ = fs::create_dir(config_root.join("accounts")).await;
 
         ctx.insert(config_root);
         ctx.insert(config);
@@ -114,20 +113,22 @@ pub struct SsUploadCommand {
 impl SsUploadCommand {
     /// 尝试导入用户凭据，失败时则以该名称创建新的凭据
     async fn credential(&self, root: &PathBuf) -> anyhow::Result<Credential> {
-        let account = root.join("accounts").join(format!("{}.bin", self.account));
+        let account = root.join("accounts").join(format!("{}.json", self.account));
         if account.exists() {
             // 凭据存在，读取并返回
-            let mut file = File::open(account).await?;
-            let mut account_str = String::new();
-            file.read_to_string(&mut account_str).await?;
-            let account = toml::from_str(&account_str)?;
+            let account = fs::read_to_string(account).await?;
+            let account = serde_json::from_str(&account)?;
 
             // TODO: 验证登录是否有效
 
             Ok(account)
         } else {
             // 凭据不存在，新登录
-            todo!()
+            let qrcode = Credential::get_qrcode().await?;
+            eprintln!("qrcode = {}", qrcode);
+            let credential = Credential::from_qrcode(qrcode).await?;
+            fs::write(account, serde_json::to_string(&credential)?).await?;
+            Ok(credential)
         }
     }
 
@@ -138,10 +139,8 @@ impl SsUploadCommand {
             bail!("Template not found!");
         }
 
-        let mut file = File::open(template).await?;
-        let mut template_str = String::new();
-        file.read_to_string(&mut template_str).await?;
-        Ok(toml::from_str(&template_str)?)
+        let template = fs::read_to_string(template).await?;
+        Ok(toml::from_str(&template)?)
     }
 }
 
@@ -175,8 +174,9 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf) -> anyhow:
             }
         }
     }
+
     // 提交投稿
-    client.submit(this.template(&config_root).await?
-        .into_video(parts).await?).await?;
+    // client.submit(this.template(&config_root).await?
+    //     .into_video(parts).await?).await
     Ok(())
 }

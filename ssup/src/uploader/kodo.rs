@@ -5,7 +5,6 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 use futures::{StreamExt, TryStreamExt};
-use reqwest::header;
 use reqwest::header::{HeaderMap, HeaderName};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
@@ -24,7 +23,7 @@ pub struct Kodo {
 
 impl Kodo {
     pub async fn from(bucket: Bucket) -> anyhow::Result<Self> {
-        let mut headers = header::HeaderMap::new();
+        let mut headers = HeaderMap::new();
         headers.insert(
             "Authorization",
             format!("UpToken {}", bucket.uptoken).parse()?,

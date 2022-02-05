@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::time::Duration;
+use reqwest::header::{HeaderMap, HeaderValue};
 use tokio::sync::mpsc::Sender;
 use crate::constants::{CONCURRENCY, USER_AGENT};
 use crate::uploader::utils::read_chunk;
@@ -44,8 +45,11 @@ pub struct Protocol<'a> {
 
 impl Upos {
     pub async fn from(bucket: Bucket) -> anyhow::Result<Self> {
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Upos-Auth", HeaderValue::from_str(&bucket.auth)?);
         let client = reqwest::Client::builder()
             .user_agent(USER_AGENT.read().as_str())
+            .default_headers(headers)
             .timeout(Duration::new(300, 0))
             .build()
             .unwrap();
@@ -60,7 +64,6 @@ impl Upos {
         );
         let ret: serde_json::Value = client
             .post(format!("{url}?uploads&output=json"))
-            .header("X-Upos-Auth", &bucket.auth)
             .send()
             .await?
             .json()

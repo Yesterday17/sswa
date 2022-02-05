@@ -1,6 +1,4 @@
 # 投稿线路
 line = "kodo"
-# 帐号文件存放的路径，与该配置文件相对路径
-account-path = "login.bin"
 # 帐号文件的加密密钥（未实现）
 account-pass = "114514"
