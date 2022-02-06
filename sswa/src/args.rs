@@ -39,6 +39,10 @@ impl Handler for Args {
             .config_dir()
             .to_path_buf()
         );
+        // 创建配置文件目录
+        let _ = fs::create_dir_all(&config_root).await?;
+        let _ = fs::create_dir(config_root.join("templates")).await;
+        let _ = fs::create_dir(config_root.join("accounts")).await;
 
         // 初始化读取配置文件
         let config: Config = match fs::read_to_string(config_root.join("config.toml")).await {
@@ -50,10 +54,6 @@ impl Handler for Args {
         if let Some(ref user_agent) = self.user_agent {
             set_useragent(user_agent.to_string());
         }
-
-        // 创建目录
-        let _ = fs::create_dir(config_root.join("templates")).await;
-        let _ = fs::create_dir(config_root.join("accounts")).await;
 
         ctx.insert(config_root);
         ctx.insert(config);
