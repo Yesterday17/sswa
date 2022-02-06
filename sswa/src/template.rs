@@ -19,8 +19,16 @@ pub struct VideoTemplate {
     /// 动态文本
     dynamic_text: TemplateString,
     /// 标签
+    #[serde(default)]
     tags: Vec<String>,
+    /// 前缀视频
+    #[serde(default)]
+    pub video_prefix: Vec<String>,
+    /// 后缀视频
+    #[serde(default)]
+    pub video_suffix: Vec<String>,
     /// 变量解释
+    #[serde(default)]
     variables: HashMap<String, String>,
 }
 

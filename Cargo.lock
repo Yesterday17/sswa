@@ -197,6 +197,7 @@ dependencies = [
  "once_cell",
  "regex",
  "terminal_size",
+ "unicode-width",
  "winapi",
 ]
 
@@ -590,6 +591,8 @@ checksum = "360231681f04fa66f736fb52f829d0400fe0316e1797e9eb95182946d6d205b3"
 dependencies = [
  "console",
  "number_prefix",
+ "unicode-segmentation",
+ "unicode-width",
 ]
 
 [[package]]

@@ -157,8 +157,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 线路选择
     let client = {
-        let p_line = ProgressBar::new_spinner();
-        let p_line = progress.add(p_line);
+        let p_line = progress.add(ProgressBar::new_spinner());
         p_line.set_message("选择线路…");
         let line = config.line.as_deref().unwrap_or("auto");
         let line = match line {
@@ -175,38 +174,45 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 上传封面
     let cover = {
-        let p_cover = ProgressBar::new_spinner();
+        let p_cover = progress.add(ProgressBar::new_spinner());
         p_cover.set_message("上传封面…");
-        let p_submit = progress.add(p_cover);
         let cover = client.upload_cover(&template.cover).await?;
-        p_submit.finish_with_message("封面上传成功！");
+        p_cover.finish_with_message("封面上传成功！");
         cover
     };
 
-    let mut parts = Vec::with_capacity(this.videos.len());
+    // 准备分P
+    let mut parts = Vec::with_capacity(this.videos.len() + template.video_prefix.len() + template.video_suffix.len());
+    let video_files: Vec<_> = template.video_prefix.iter().map(|p| PathBuf::from(p))
+        .chain(this.videos.clone().into_iter())
+        .chain(template.video_suffix.iter().map(|p| PathBuf::from(p))).collect();
+    // 检查文件存在
+    for video in video_files.iter() {
+        if !video.exists() {
+            bail!("Video not found: {}", video.display());
+        }
+    }
 
     // 上传分P
-    for video in &this.videos {
+    for video in video_files {
         let (sx, mut rx) = tokio::sync::mpsc::channel(1);
         let metadata = tokio::fs::metadata(&video).await?;
         let total_size = metadata.len() as usize;
 
-        let upload = client.upload_video_part(video, total_size, sx);
+        let upload = client.upload_video_part(&video, total_size, sx);
         tokio::pin!(upload);
 
-        let mut uploaded_size = 0;
-        let pb = ProgressBar::new(total_size as u64);
-        let pb = progress.add(pb);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})"));
+        let pb = progress.add(ProgressBar::new(total_size as u64));
+        let filename = video.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or("[{elapsed_precise}]".to_string());
+        let format = format!("{{spinner:.green}} {filename} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
+        pb.set_style(ProgressStyle::default_bar().template(&format));
         pb.enable_steady_tick(1000);
 
         loop {
             tokio::select! {
                 Some(size) = rx.recv() => {
                     // 上传进度
-                    uploaded_size += size;
-                    pb.set_position(uploaded_size as u64);
+                    pb.inc(size as u64);
                 }
                 video = &mut upload => {
                     // 上传完成

@@ -5,11 +5,11 @@ description = '''片源：RabbitC
 翻译：{{translators}}
 校对：{{jiaodui}}
 时间轴：{{subtitle}}'''
-# 转载来源，该自动存在时以转载形式投稿，否则投成自制
+# 转载来源，该字段存在且不为空时以转载形式投稿，否则投成自制
 forward-source = "765.million"
 # 投稿分区
 tid = 152
-# 封面图片路径，留空表示自动获取（TODO）
+# 封面图片路径
 cover = "./cover.png"
 # 动态文本
 dynamic-text = ""
@@ -17,9 +17,12 @@ dynamic-text = ""
 tags = ["田所梓", "山崎遥", "麻仓桃", "偶像大师百万广播"]
 # 字幕（TODO）
 subtitle = { open = false, lang = "zh-cn" }
-# 前缀视频，在投稿时自动添加在选中视频**前面**（TODO）
-video-prefix = []
-# 后缀视频，在投稿时自动添加在选中视频**后面**（TODO）
+# 前缀视频，在投稿时自动添加在选中视频**前面**
+video-prefix = [
+    # 建议写绝对路径，相对路径是相对命令执行时候的 CWD
+    "/tmp/prefix.mp4",
+]
+# 后缀视频，在投稿时自动添加在选中视频**后面**
 video-suffix = []
 
 # 变量对应的解释文本，在需要用户手动输入时作为提示文本展示
