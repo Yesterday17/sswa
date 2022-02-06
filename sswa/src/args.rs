@@ -95,7 +95,7 @@ pub struct SsUploadCommand {
 
     /// 投稿帐号
     #[clap(short = 'u', long = "user")]
-    account: String,
+    account: Option<String>,
 
     /// 是否跳过投稿前的检查
     #[clap(short = 'y')]
@@ -107,8 +107,9 @@ pub struct SsUploadCommand {
 
 impl SsUploadCommand {
     /// 尝试导入用户凭据，失败时则以该名称创建新的凭据
-    async fn credential(&self, root: &PathBuf) -> anyhow::Result<Credential> {
-        let account = root.join("accounts").join(format!("{}.json", self.account));
+    async fn credential(&self, root: &PathBuf, config: &Config) -> anyhow::Result<Credential> {
+        let account = root.join("accounts")
+            .join(format!("{}.json", self.account.as_deref().or(config.default_user.as_deref()).expect("account not specified")));
         if account.exists() {
             // 凭据存在，读取并返回
             let account = fs::read_to_string(account).await?;
@@ -152,7 +153,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     template.validate(this.skip_confirm)?;
 
     // 用户登录检查
-    let credential = this.credential(config_root).await?;
+    let credential = this.credential(config_root, config).await?;
 
     // 线路选择
     let client = {

@@ -1,4 +1,4 @@
 # 投稿线路
 line = "kodo"
-# 帐号文件的加密密钥（未实现）
-account-pass = "114514"
+# 默认使用的投稿帐号
+default-user = "me"
