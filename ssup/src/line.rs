@@ -132,7 +132,6 @@ impl UploadLine {
                 == 200
             {
                 line.cost = instant.elapsed().as_millis();
-                // println!("{}: {}", line.query, line.cost);
                 if line_chosen.cost > line.cost {
                     line_chosen = line
                 }

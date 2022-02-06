@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use ssup::video::{Subtitle, VideoPart, Video};
 use serde::Deserialize;
 
@@ -18,17 +19,19 @@ pub struct VideoTemplate {
     dynamic_text: TemplateString,
     /// 标签
     tags: Vec<String>,
+    /// 变量解释
+    variables: HashMap<String, String>,
 }
 
 impl VideoTemplate {
     /// 校验模板字符串
     pub fn validate(&self) -> anyhow::Result<()> {
-        self.title.to_string()?;
-        self.description.to_string()?;
-        self.dynamic_text.to_string()?;
+        self.title.to_string(&self.variables)?;
+        self.description.to_string(&self.variables)?;
+        self.dynamic_text.to_string(&self.variables)?;
 
         if let Some(forward_source) = &self.forward_source {
-            forward_source.to_string()?;
+            forward_source.to_string(&self.variables)?;
         }
         Ok(())
     }
@@ -40,14 +43,14 @@ impl VideoTemplate {
                 _ => 1,
             },
             source: self.forward_source
-                .and_then(|s| s.to_string().ok())
+                .and_then(|s| s.to_string(&self.variables).ok())
                 .unwrap_or("".into()),
             tid: self.tid,
             cover,
-            title: self.title.to_string()?,
+            title: self.title.to_string(&self.variables)?,
             desc_format_id: 0,
-            desc: self.description.to_string()?,
-            dynamic: self.dynamic_text.to_string()?,
+            desc: self.description.to_string(&self.variables)?,
+            dynamic: self.dynamic_text.to_string(&self.variables)?,
             subtitle: Subtitle {
                 open: 0,
                 lan: "".to_string(),
@@ -64,7 +67,7 @@ impl VideoTemplate {
 struct TemplateString(String);
 
 impl TemplateString {
-    fn to_string(&self) -> anyhow::Result<String> {
+    fn to_string(&self, description: &HashMap<String, String>) -> anyhow::Result<String> {
         let regex = regex::Regex::new(r"\{\{(.*?)\}\}").unwrap();
         let matches = regex.captures_iter(&self.0)
             .map(|c| c[1].to_string())
@@ -72,11 +75,22 @@ impl TemplateString {
         let mut result = self.0.clone();
         if !matches.is_empty() {
             for variable in matches.iter() {
-                result = result.replace(
-                    &format!("{{{{{variable}}}}}"),
-                    &dotenv::var(variable)
-                        .map_err(|_| anyhow::anyhow!("variable `{}` not provided", variable))?,
-                );
+                let var = dotenv::var(&variable).or_else(|_| -> anyhow::Result<_>{
+                    let description = match description.get(variable) {
+                        Some(description) => format!("{description}({variable})"),
+                        None => format!("{variable}"),
+                    };
+
+                    // 用户输入变量
+                    let question = requestty::Question::input(variable).message(description).build();
+                    let ans = requestty::prompt([question])?;
+                    let ans = ans.get(variable).unwrap();
+                    let ans = ans.as_string().unwrap();
+                    std::env::set_var(&variable, ans);
+                    let ans = dotenv::var(&variable)?;
+                    Ok(ans)
+                })?;
+                result = result.replace(&format!("{{{{{variable}}}}}"), &var);
             }
         }
         Ok(result)
