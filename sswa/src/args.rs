@@ -158,7 +158,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     let client = {
         let p_line = ProgressBar::new_spinner();
         let p_line = progress.add(p_line);
-        p_line.set_message("选择线路中…");
+        p_line.set_message("选择线路…");
         let line = config.line.as_deref().unwrap_or("auto");
         let line = match line {
             "kodo" => UploadLine::kodo(),
@@ -170,6 +170,16 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         };
         p_line.finish_with_message("线路选择完成！");
         Client::new(line, credential)
+    };
+
+    // 上传封面
+    let cover = {
+        let p_cover = ProgressBar::new_spinner();
+        p_cover.set_message("上传封面…");
+        let p_submit = progress.add(p_cover);
+        let cover = client.upload_cover(&template.cover).await?;
+        p_submit.finish_with_message("封面上传成功！");
+        cover
     };
 
     let mut parts = Vec::with_capacity(this.videos.len());
@@ -206,16 +216,6 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
             }
         }
     }
-
-    // 上传封面
-    let cover = {
-        let p_cover = ProgressBar::new_spinner();
-        p_cover.set_message("封面上传中…");
-        let p_submit = progress.add(p_cover);
-        let cover = client.upload_cover(&template.cover).await?;
-        p_submit.finish_with_message("封面上传成功！");
-        cover
-    };
 
     // 提交视频
     let video = template.into_video(parts, cover).await?;
