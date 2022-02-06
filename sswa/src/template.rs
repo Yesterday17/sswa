@@ -26,7 +26,7 @@ pub struct VideoTemplate {
 
 impl VideoTemplate {
     /// 校验模板字符串
-    pub fn validate(&self) -> anyhow::Result<()> {
+    pub fn validate(&self, skip_confirm: bool) -> anyhow::Result<()> {
         let title = self.title.to_string(&self.variables)?;
         let desc = self.description.to_string(&self.variables)?;
         let dynamic = self.dynamic_text.to_string(&self.variables)?;
@@ -37,15 +37,17 @@ impl VideoTemplate {
             String::new()
         };
 
-        eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n动态：{dynamic}",
-                  dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
-        );
-        let question = requestty::Question::confirm("anonymous")
-            .message("投稿信息如上，是否正确？")
-            .build();
-        let confirm = requestty::prompt_one(question).unwrap();
-        if !confirm.as_bool().unwrap_or(false) {
-            exit(0);
+        if !skip_confirm {
+            eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n动态：{dynamic}",
+                      dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
+            );
+            let question = requestty::Question::confirm("anonymous")
+                .message("投稿信息如上，是否正确？")
+                .build();
+            let confirm = requestty::prompt_one(question).unwrap();
+            if !confirm.as_bool().unwrap_or(false) {
+                exit(0);
+            }
         }
         Ok(())
     }

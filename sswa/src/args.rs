@@ -97,6 +97,10 @@ pub struct SsUploadCommand {
     #[clap(short = 'u', long = "user")]
     account: String,
 
+    /// 是否跳过投稿前的检查
+    #[clap(short = 'y')]
+    skip_confirm: bool,
+
     /// 待投稿的视频
     videos: Vec<PathBuf>,
 }
@@ -145,7 +149,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 模板字符串检查
     let template = this.template(&config_root).await?;
-    template.validate()?;
+    template.validate(this.skip_confirm)?;
 
     // 用户登录检查
     let credential = this.credential(config_root).await?;
