@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::process::exit;
 use ssup::video::{Subtitle, VideoPart, Video};
 use serde::Deserialize;
 
@@ -26,12 +27,25 @@ pub struct VideoTemplate {
 impl VideoTemplate {
     /// 校验模板字符串
     pub fn validate(&self) -> anyhow::Result<()> {
-        self.title.to_string(&self.variables)?;
-        self.description.to_string(&self.variables)?;
-        self.dynamic_text.to_string(&self.variables)?;
+        let title = self.title.to_string(&self.variables)?;
+        let desc = self.description.to_string(&self.variables)?;
+        let dynamic = self.dynamic_text.to_string(&self.variables)?;
 
-        if let Some(forward_source) = &self.forward_source {
-            forward_source.to_string(&self.variables)?;
+        let forward_source = if let Some(forward_source) = &self.forward_source {
+            forward_source.to_string(&self.variables)?
+        } else {
+            String::new()
+        };
+
+        eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n动态：{dynamic}",
+                  dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
+        );
+        let question = requestty::Question::confirm("anonymous")
+            .message("投稿信息如上，是否正确？")
+            .build();
+        let confirm = requestty::prompt_one(question).unwrap();
+        if !confirm.as_bool().unwrap_or(false) {
+            exit(0);
         }
         Ok(())
     }
@@ -83,8 +97,7 @@ impl TemplateString {
 
                     // 用户输入变量
                     let question = requestty::Question::input(variable).message(description).build();
-                    let ans = requestty::prompt([question])?;
-                    let ans = ans.get(variable).unwrap();
+                    let ans = requestty::prompt_one(question)?;
                     let ans = ans.as_string().unwrap();
                     std::env::set_var(&variable, ans);
                     let ans = dotenv::var(&variable)?;

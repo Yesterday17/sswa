@@ -153,8 +153,8 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     // 线路选择
     let client = {
         let p_line = ProgressBar::new_spinner();
-        p_line.set_message("选择线路中…");
         let p_line = progress.add(p_line);
+        p_line.set_message("选择线路中…");
         let line = config.line.as_deref().unwrap_or("auto");
         let line = match line {
             "kodo" => UploadLine::kodo(),
@@ -206,7 +206,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     // 上传封面
     let cover = {
         let p_cover = ProgressBar::new_spinner();
-        p_cover.set_message("上传封面中…");
+        p_cover.set_message("封面上传中…");
         let p_submit = progress.add(p_cover);
         let cover = client.upload_cover(&template.cover).await?;
         p_submit.finish_with_message("封面上传成功！");
@@ -216,5 +216,6 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     // 提交视频
     let video = template.into_video(parts, cover).await?;
     client.submit(video).await?;
+    eprintln!("投稿成功！");
     Ok(())
 }
