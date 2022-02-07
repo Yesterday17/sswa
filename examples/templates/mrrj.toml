@@ -17,7 +17,7 @@ cover = "./cover.png"
 # 动态文本
 dynamic-text = ""
 # 标签
-tags = ["田所梓", "山崎遥", "麻仓桃", "偶像大师百万广播"]
+tags = ["田所梓", "山崎遥", "麻仓桃", "偶像大师百万广播", "{guests}"]
 # 字幕（TODO）
 subtitle = { open = false, lang = "zh-cn" }
 # 前缀视频，在投稿时自动添加在选中视频**前面**
@@ -35,3 +35,4 @@ title = "标题"
 translators = "翻译"
 jiaodui = "校对"
 subtitle = "时间轴"
+guests = "嘉宾 Tag"

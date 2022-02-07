@@ -20,7 +20,7 @@ pub struct VideoTemplate {
     dynamic_text: TemplateString,
     /// 标签
     #[serde(default)]
-    tags: Vec<String>,
+    tags: Vec<TemplateString>,
     /// 前缀视频
     #[serde(default)]
     pub video_prefix: Vec<String>,
@@ -47,9 +47,18 @@ impl VideoTemplate {
             String::new()
         };
 
+        let mut tags = Vec::new();
+        for tag in self.tags.iter() {
+            let result = tag.to_string(&self.variables)?;
+            if !result.is_empty() {
+                tags.push(result);
+            }
+        }
+
         if !skip_confirm {
-            eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n动态：{dynamic}",
+            eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}",
                       dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
+                      tags = tags.join(","),
             );
             let question = requestty::Question::confirm("anonymous")
                 .message("投稿信息如上，是否正确？")
@@ -81,7 +90,15 @@ impl VideoTemplate {
                 open: 0,
                 lan: "".to_string(),
             },
-            tag: self.tags.join(","),
+            tag: self.tags.iter()
+                .map(|s| s.to_string(&self.variables))
+                .filter(|s| match s {
+                    Ok(s) if !s.is_empty() => true,
+                    _ => false
+                })
+                .map(Result::unwrap)
+                .collect::<Vec<_>>()
+                .join(","),
             videos: parts,
             display_time: None,
             open_subtitle: false,
