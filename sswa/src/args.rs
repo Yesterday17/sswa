@@ -88,10 +88,13 @@ pub struct SsUploadCommand {
     #[clap(short, long)]
     template: String,
 
-    /// 投稿模板对应的变量文件
-    /// 未指定该字段时会要求用户输入对应的变量
+    /// 投稿模板对应的变量
     #[clap(short, long = "var")]
-    variables: Option<PathBuf>,
+    variables: Vec<String>,
+
+    /// 变量文件
+    #[clap(short = 'f', long = "variable-file")]
+    variable_file: Option<PathBuf>,
 
     /// 投稿帐号
     #[clap(short = 'u', long = "user")]
@@ -130,8 +133,15 @@ impl SsUploadCommand {
 
     /// 尝试导入视频模板
     async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
-        if let Some(variables) = &self.variables {
+        // 最低优先级：环境变量
+        // 较高优先级：变量文件
+        if let Some(variables) = &self.variable_file {
             dotenv::from_path(variables)?;
+        }
+        // 最高优先级：命令行变量
+        for variable in self.variables.iter() {
+            let (key, value) = variable.split_once('-').unwrap_or((&variable, ""));
+            std::env::set_var(key, value);
         }
 
         let template = root.join("templates").join(format!("{}.toml", self.template));
