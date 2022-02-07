@@ -1,3 +1,6 @@
+# 模板的默认投稿帐号
+default-user = "me"
+
 # 标题
 title = "【字幕】【偶像大师百万广播{{num}}回】{{title}}【MillionRADIO】"
 # 描述

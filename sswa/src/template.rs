@@ -27,6 +27,8 @@ pub struct VideoTemplate {
     /// 后缀视频
     #[serde(default)]
     pub video_suffix: Vec<String>,
+    /// 默认用户
+    pub default_user: Option<String>,
     /// 变量解释
     #[serde(default)]
     variables: HashMap<String, String>,
