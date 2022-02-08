@@ -140,7 +140,7 @@ impl SsUploadCommand {
         }
         // 最高优先级：命令行变量
         for variable in self.variables.iter() {
-            let (key, value) = variable.split_once('-').unwrap_or((&variable, ""));
+            let (key, value) = variable.split_once('=').unwrap_or((&variable, ""));
             std::env::set_var(key, value);
         }
 
