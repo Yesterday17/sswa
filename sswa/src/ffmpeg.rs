@@ -10,8 +10,8 @@ pub fn get_duration<P: AsRef<Path>>(video_path: P) -> anyhow::Result<u32> {
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
-            video_path.as_ref().to_str().unwrap()
         ])
+        .arg(video_path.as_ref().as_os_str())
         .stdout(Stdio::piped())
         .spawn()?;
     let mut result = String::new();
@@ -27,12 +27,15 @@ pub fn auto_cover<P: AsRef<Path>>(input_path: P, time: u32) -> anyhow::Result<Te
             "-v", "error",
             "-y",
             "-ss", &format!("{time}"),
-            "-i", input_path.as_ref().to_str().ok_or(anyhow::anyhow!("invalid character in video_path"))?,
+            "-i"
+        ])
+        .arg(input_path.as_ref().as_os_str())
+        .args([
             "-vf", "scale=960:600:force_original_aspect_ratio=decrease,pad=960:600:-1:-1:color=black",
             "-frames:v", "1",
             "-f", "image2",
-            file.path().to_str().ok_or(anyhow::anyhow!("invalid character in temp file path"))?,
         ])
+        .arg(file.path().as_os_str())
         .stderr(Stdio::piped())
         .spawn()?
         .wait()?;
@@ -45,11 +48,14 @@ pub fn scale_cover<P: AsRef<Path>>(input_path: P) -> anyhow::Result<TempPath> {
         .args([
             "-v", "error",
             "-y",
-            "-i", input_path.as_ref().to_str().ok_or(anyhow::anyhow!("invalid character in video_path"))?,
+            "-i"
+        ])
+        .arg(input_path.as_ref().as_os_str())
+        .args([
             "-vf", "scale=960:600:force_original_aspect_ratio=decrease,pad=960:600:-1:-1:color=black",
             "-f", "image2",
-            file.path().to_str().ok_or(anyhow::anyhow!("invalid character in temp file path"))?,
         ])
+        .arg(file.path().as_os_str())
         .stderr(Stdio::piped())
         .spawn()?
         .wait()?;
