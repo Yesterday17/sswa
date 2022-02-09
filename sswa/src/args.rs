@@ -204,7 +204,6 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         p_cover.set_message("上传封面…");
         let cover = client.upload_cover(cover_path).await.with_context(|| "upload cover")?;
         p_cover.finish_with_message("封面上传成功！");
-        println!("{cover}");
         cover
     };
 
