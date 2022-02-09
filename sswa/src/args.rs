@@ -218,10 +218,10 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     };
 
     // 准备分P
-    let mut parts = Vec::with_capacity(this.videos.len() + template.video_prefix.len() + template.video_suffix.len());
-    let video_files: Vec<_> = template.video_prefix.iter().map(|p| PathBuf::from(p))
+    let mut parts = Vec::with_capacity(this.videos.len() + template.video_prefix_len() + template.video_suffix_len());
+    let video_files: Vec<_> = template.video_prefix().into_iter()
         .chain(this.videos.clone().into_iter())
-        .chain(template.video_suffix.iter().map(|p| PathBuf::from(p))).collect();
+        .chain(template.video_suffix().into_iter()).collect();
     // 检查文件存在
     for video in video_files.iter() {
         if !video.exists() {

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::exit;
 use ssup::video::{Subtitle, VideoPart, Video};
 use serde::Deserialize;
@@ -23,10 +24,10 @@ pub struct VideoTemplate {
     tags: Vec<TemplateString>,
     /// 前缀视频
     #[serde(default)]
-    pub video_prefix: Vec<String>,
+    video_prefix: Vec<TemplateString>,
     /// 后缀视频
     #[serde(default)]
-    pub video_suffix: Vec<String>,
+    video_suffix: Vec<TemplateString>,
     /// 默认用户
     pub default_user: Option<String>,
     /// 变量解释
@@ -53,6 +54,13 @@ impl VideoTemplate {
             if !result.is_empty() {
                 tags.push(result);
             }
+        }
+
+        for video in self.video_prefix.iter() {
+            video.to_string(&self.variables)?;
+        }
+        for video in self.video_suffix.iter() {
+            video.to_string(&self.variables)?;
         }
 
         if !skip_confirm {
@@ -92,11 +100,10 @@ impl VideoTemplate {
             },
             tag: self.tags.iter()
                 .map(|s| s.to_string(&self.variables))
-                .filter(|s| match s {
-                    Ok(s) if !s.is_empty() => true,
-                    _ => false
+                .filter_map(|s| match s {
+                    Ok(s) if !s.is_empty() => Some(s),
+                    _ => None
                 })
-                .map(Result::unwrap)
                 .collect::<Vec<_>>()
                 .join(","),
             videos: parts,
@@ -107,6 +114,36 @@ impl VideoTemplate {
 
     pub fn auto_cover(&self) -> bool {
         self.cover.is_empty() || self.cover == "auto"
+    }
+
+    pub fn video_prefix(&self) -> Vec<PathBuf> {
+        self.video_prefix.iter()
+            .map(|s| s.to_string(&self.variables))
+            .filter_map(|s| match s {
+                Ok(s) if !s.is_empty() => Some(s),
+                _ => None
+            })
+            .map(|s| PathBuf::from(s))
+            .collect()
+    }
+
+    pub fn video_prefix_len(&self) -> usize {
+        self.video_prefix.len()
+    }
+
+    pub fn video_suffix(&self) -> Vec<PathBuf> {
+        self.video_suffix.iter()
+            .map(|s| s.to_string(&self.variables))
+            .filter_map(|s| match s {
+                Ok(s) if !s.is_empty() => Some(s),
+                _ => None
+            })
+            .map(|s| PathBuf::from(s))
+            .collect()
+    }
+
+    pub fn video_suffix_len(&self) -> usize {
+        self.video_suffix.len()
     }
 }
 
