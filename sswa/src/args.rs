@@ -106,6 +106,10 @@ pub struct SsUploadCommand {
     #[clap(short = 'y')]
     skip_confirm: bool,
 
+    /// 是否自动缩放封面到 960*600
+    #[clap(long)]
+    scale_cover: Option<bool>,
+
     /// 待投稿的视频
     videos: Vec<PathBuf>,
 }
@@ -190,7 +194,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
             let duration = ffmpeg::get_duration(&this.videos[0]).with_context(|| "ffmpeg::get_duration")?;
             let rnd = rand::thread_rng().gen_range(0..duration);
             Some(ffmpeg::auto_cover(&this.videos[0], rnd)?)
-        } else if config.scale_cover() {
+        } else if this.scale_cover.unwrap_or(config.scale_cover()) {
             Some(ffmpeg::scale_cover(&template.cover).with_context(|| "ffmpeg::scale_cover")?)
         } else {
             None
