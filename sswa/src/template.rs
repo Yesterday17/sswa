@@ -104,6 +104,10 @@ impl VideoTemplate {
             open_subtitle: false,
         })
     }
+
+    pub fn auto_cover(&self) -> bool {
+        self.cover.is_empty() || self.cover == "auto"
+    }
 }
 
 #[derive(Deserialize)]

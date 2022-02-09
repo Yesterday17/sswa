@@ -9,6 +9,7 @@ ssup = { path = "../ssup" }
 clap = { version = "3.0.14", features = ["derive"] }
 anni-clap-handler = { git = "https://github.com/ProjectAnni/anni", features = ["async"] }
 directories-next = "2.0.0"
+tempfile = "3.3.0"
 
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
 
@@ -22,3 +23,4 @@ requestty = "0.3.0"
 dotenv = "0.15.0"
 indicatif = { version = "0.17.0-rc.2", features = ["improved_unicode"] }
 regex = "1"
+rand = "0.8.4"

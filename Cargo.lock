@@ -1376,11 +1376,13 @@ dependencies = [
  "dotenv",
  "indicatif",
  "log",
+ "rand",
  "regex",
  "requestty",
  "serde",
  "serde_json",
  "ssup",
+ "tempfile",
  "tokio",
  "toml",
 ]

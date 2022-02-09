@@ -1,12 +1,14 @@
 use std::path::PathBuf;
 use clap::Parser;
-use anni_clap_handler::{Context, Handler, handler};
-use anyhow::bail;
+use anni_clap_handler::{Context as ClapContext, Handler, handler};
+use anyhow::{bail, Context};
 use indicatif::{ProgressBar, ProgressStyle};
+use rand::Rng;
 use tokio::fs;
 use ssup::{Client, Credential, UploadLine};
 use ssup::constants::set_useragent;
 use crate::config::Config;
+use crate::ffmpeg;
 use crate::template::VideoTemplate;
 
 #[derive(Parser, Debug, Clone)]
@@ -26,7 +28,7 @@ pub struct Args {
 
 #[anni_clap_handler::async_trait]
 impl Handler for Args {
-    async fn handle_command(&mut self, ctx: &mut Context) -> anyhow::Result<()> {
+    async fn handle_command(&mut self, ctx: &mut ClapContext) -> anyhow::Result<()> {
         // 初始化配置文件目录
         let config_root = self.config_root.as_deref().and_then(|path| {
             if path.is_absolute() {
@@ -60,7 +62,7 @@ impl Handler for Args {
         Ok(())
     }
 
-    async fn handle_subcommand(&mut self, ctx: Context) -> anyhow::Result<()> {
+    async fn handle_subcommand(&mut self, ctx: ClapContext) -> anyhow::Result<()> {
         self.command.execute(ctx).await
     }
 }
@@ -160,7 +162,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 模板字符串检查
     let template = this.template(&config_root).await?;
-    template.validate(this.skip_confirm)?;
+    template.validate(this.skip_confirm).with_context(|| "validate template")?;
 
     // 用户登录检查
     let credential = this.credential(config_root, template.default_user.as_deref().or(config.default_user.as_deref())).await?;
@@ -175,7 +177,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
             "bda2" => UploadLine::bda2(),
             "ws" => UploadLine::ws(),
             "qn" => UploadLine::qn(),
-            "auto" => UploadLine::auto().await?,
+            "auto" => UploadLine::auto().await.with_context(|| "auto select upload line")?,
             _ => unimplemented!(),
         };
         p_line.finish_with_message("线路选择完成！");
@@ -184,10 +186,25 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 上传封面
     let cover = {
+        let cover = if template.auto_cover() {
+            let duration = ffmpeg::get_duration(&this.videos[0]).with_context(|| "ffmpeg::get_duration")?;
+            let rnd = rand::thread_rng().gen_range(0..duration);
+            Some(ffmpeg::auto_cover(&this.videos[0], rnd)?)
+        } else if config.scale_cover() {
+            Some(ffmpeg::scale_cover(&template.cover).with_context(|| "ffmpeg::scale_cover")?)
+        } else {
+            None
+        };
+        let cover_path = match &cover {
+            Some(cover) => cover.to_path_buf(),
+            None => template.cover.to_string().into(),
+        };
+
         let p_cover = progress.add(ProgressBar::new_spinner());
         p_cover.set_message("上传封面…");
-        let cover = client.upload_cover(&template.cover).await?;
+        let cover = client.upload_cover(cover_path).await.with_context(|| "upload cover")?;
         p_cover.finish_with_message("封面上传成功！");
+        println!("{cover}");
         cover
     };
 

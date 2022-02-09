@@ -13,6 +13,7 @@ forward-source = "765.million"
 # 投稿分区
 tid = 152
 # 封面图片路径
+# 当留空或值为 auto 时，自动从第一个视频（不包含前缀视频）中随机提取
 cover = "./cover.png"
 # 动态文本
 dynamic-text = ""

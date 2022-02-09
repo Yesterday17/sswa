@@ -2,3 +2,5 @@
 line = "kodo"
 # 默认使用的投稿帐号
 default-user = "me"
+# 是否自动缩放封面（依赖 ffmpeg）
+scale-cover = false
