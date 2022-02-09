@@ -63,7 +63,7 @@ impl VideoTemplate {
             let question = requestty::Question::confirm("anonymous")
                 .message("投稿信息如上，是否正确？")
                 .build();
-            let confirm = requestty::prompt_one(question).unwrap();
+            let confirm = requestty::prompt_one(question)?;
             if !confirm.as_bool().unwrap_or(false) {
                 exit(0);
             }

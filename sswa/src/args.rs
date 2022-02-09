@@ -162,6 +162,12 @@ impl SsUploadCommand {
 
 #[handler(SsUploadCommand)]
 async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+    // 预定义变量
+    std::env::set_var("ss_config_root", config_root.as_os_str());
+    std::env::set_var("ss_file_name", this.videos[0].file_name().unwrap());
+    std::env::set_var("ss_file_stem", this.videos[0].file_stem().unwrap());
+    std::env::set_var("ss_file_pwd", this.videos[0].canonicalize()?.parent().unwrap().as_os_str());
+
     let progress = indicatif::MultiProgress::new();
 
     // 模板字符串检查
