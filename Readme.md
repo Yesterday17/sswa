@@ -22,7 +22,7 @@ sswa config
 3. 使用命令：
 
 ```bash
-# 以 your_name 用户投稿，模板为 your_template_name，视频文件为 video.mp4，分P名为 video
+# 以 your_name 用户投稿，模板为 your_template_name，视频文件为 video.mkv，分P名为 video
 sswa upload --user your_name --template your_template_name video.mkv
 ```
 
