@@ -162,16 +162,16 @@ impl SsUploadCommand {
 
 #[handler(SsUploadCommand)]
 async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
-    // 预定义变量
+    let progress = indicatif::MultiProgress::new();
+
+    // 加载模板
+    let template = this.template(&config_root).await?;
+    // 预定义变量，在 this.template 方法之后执行，覆盖所有可能冲突的环境变量
     std::env::set_var("ss_config_root", config_root.as_os_str());
     std::env::set_var("ss_file_name", this.videos[0].file_name().unwrap());
     std::env::set_var("ss_file_stem", this.videos[0].file_stem().unwrap());
     std::env::set_var("ss_file_pwd", this.videos[0].canonicalize()?.parent().unwrap().as_os_str());
-
-    let progress = indicatif::MultiProgress::new();
-
-    // 模板字符串检查
-    let template = this.template(&config_root).await?;
+    // 模板变量检查
     template.validate(this.skip_confirm).with_context(|| "validate template")?;
 
     // 用户登录检查

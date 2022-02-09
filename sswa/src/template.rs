@@ -123,6 +123,10 @@ impl TemplateString {
         if !matches.is_empty() {
             for variable in matches.iter() {
                 let var = dotenv::var(&variable).or_else(|_| -> anyhow::Result<_>{
+                    if variable.starts_with("ss") {
+                        anyhow::bail!("未定义的预设变量：{}", variable)
+                    };
+
                     let description = match description.get(variable) {
                         Some(description) => format!("{description}({variable})"),
                         None => format!("{variable}"),
