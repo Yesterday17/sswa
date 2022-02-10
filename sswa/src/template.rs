@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct VideoTemplate {
+pub(crate) struct VideoTemplate {
     /// 视频标题
     title: TemplateString,
     /// 简介
@@ -37,7 +37,7 @@ pub struct VideoTemplate {
 
 impl VideoTemplate {
     /// 校验模板字符串
-    pub fn validate(&self, skip_confirm: bool) -> anyhow::Result<()> {
+    pub(crate) fn validate(&self, skip_confirm: bool) -> anyhow::Result<()> {
         let title = self.title.to_string(&self.variables)?;
         let desc = self.description.to_string(&self.variables)?;
         let dynamic = self.dynamic_text.to_string(&self.variables)?;
@@ -79,7 +79,7 @@ impl VideoTemplate {
         Ok(())
     }
 
-    pub async fn into_video(self, parts: Vec<VideoPart>, cover: String) -> anyhow::Result<Video> {
+    pub(crate) async fn into_video(self, parts: Vec<VideoPart>, cover: String) -> anyhow::Result<Video> {
         Ok(Video {
             copyright: match &self.forward_source {
                 Some(source) if !source.is_empty() => 2,
@@ -112,11 +112,11 @@ impl VideoTemplate {
         })
     }
 
-    pub fn auto_cover(&self) -> bool {
+    pub(crate) fn auto_cover(&self) -> bool {
         self.cover.is_empty() || self.cover == "auto"
     }
 
-    pub fn video_prefix(&self) -> Vec<PathBuf> {
+    pub(crate) fn video_prefix(&self) -> Vec<PathBuf> {
         self.video_prefix.iter()
             .map(|s| s.to_string(&self.variables))
             .filter_map(|s| match s {
@@ -127,11 +127,11 @@ impl VideoTemplate {
             .collect()
     }
 
-    pub fn video_prefix_len(&self) -> usize {
+    pub(crate) fn video_prefix_len(&self) -> usize {
         self.video_prefix.len()
     }
 
-    pub fn video_suffix(&self) -> Vec<PathBuf> {
+    pub(crate) fn video_suffix(&self) -> Vec<PathBuf> {
         self.video_suffix.iter()
             .map(|s| s.to_string(&self.variables))
             .filter_map(|s| match s {
@@ -142,7 +142,7 @@ impl VideoTemplate {
             .collect()
     }
 
-    pub fn video_suffix_len(&self) -> usize {
+    pub(crate) fn video_suffix_len(&self) -> usize {
         self.video_suffix.len()
     }
 }

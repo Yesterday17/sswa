@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use std::str::FromStr;
 use tempfile::{NamedTempFile, TempPath};
 
-pub fn get_duration<P: AsRef<Path>>(video_path: P) -> anyhow::Result<u32> {
+pub(crate) fn get_duration<P: AsRef<Path>>(video_path: P) -> anyhow::Result<u32> {
     let command = Command::new("ffprobe")
         .args(&[
             "-v", "error",
@@ -20,7 +20,7 @@ pub fn get_duration<P: AsRef<Path>>(video_path: P) -> anyhow::Result<u32> {
     Ok(u32::from_str(num)?)
 }
 
-pub fn auto_cover<P: AsRef<Path>>(input_path: P, time: u32) -> anyhow::Result<TempPath> {
+pub(crate) fn auto_cover<P: AsRef<Path>>(input_path: P, time: u32) -> anyhow::Result<TempPath> {
     let file = NamedTempFile::new()?;
     Command::new("ffmpeg")
         .args([
@@ -42,7 +42,7 @@ pub fn auto_cover<P: AsRef<Path>>(input_path: P, time: u32) -> anyhow::Result<Te
     Ok(file.into_temp_path())
 }
 
-pub fn scale_cover<P: AsRef<Path>>(input_path: P) -> anyhow::Result<TempPath> {
+pub(crate) fn scale_cover<P: AsRef<Path>>(input_path: P) -> anyhow::Result<TempPath> {
     let file = NamedTempFile::new()?;
     Command::new("ffmpeg")
         .args([

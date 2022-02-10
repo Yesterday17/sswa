@@ -12,7 +12,7 @@ use crate::ffmpeg;
 use crate::template::VideoTemplate;
 
 #[derive(Parser, Clone)]
-pub struct Args {
+pub(crate) struct Args {
     /// 配置文件所在的目录，留空时默认通过 directories-next 获取
     #[clap(short, long)]
     config_root: Option<PathBuf>,
@@ -68,7 +68,7 @@ impl Handler for Args {
 }
 
 #[derive(Parser, Handler, Clone)]
-pub enum SsCommand {
+pub(crate) enum SsCommand {
     /// 输出配置文件所在路径
     Config(SsConfigCommand),
     /// 上传视频相关功能
@@ -82,7 +82,7 @@ pub enum SsCommand {
 }
 
 #[derive(Parser, Clone)]
-pub struct SsConfigCommand;
+pub(crate) struct SsConfigCommand;
 
 #[handler(SsConfigCommand)]
 async fn handle_config(config_root: &PathBuf) -> anyhow::Result<()> {
@@ -91,7 +91,7 @@ async fn handle_config(config_root: &PathBuf) -> anyhow::Result<()> {
 }
 
 #[derive(Parser, Clone)]
-pub struct SsUploadCommand {
+pub(crate) struct SsUploadCommand {
     /// 投稿使用的模板
     #[clap(short, long)]
     template: String,
@@ -206,7 +206,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
             let duration = ffmpeg::get_duration(&this.videos[0]).with_context(|| "ffmpeg::get_duration")?;
             let rnd = rand::thread_rng().gen_range(0..duration);
             Some(ffmpeg::auto_cover(&this.videos[0], rnd)?)
-        } else if this.scale_cover.unwrap_or(config.scale_cover()) {
+        } else if this.scale_cover.unwrap_or(config.need_scale_cover()) {
             Some(ffmpeg::scale_cover(&template.cover).with_context(|| "ffmpeg::scale_cover")?)
         } else {
             None
@@ -276,7 +276,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 }
 
 #[derive(Parser, Clone)]
-pub struct SsAccountListCommand;
+pub(crate) struct SsAccountListCommand;
 
 #[handler(SsAccountListCommand)]
 async fn account_list(config_root: &PathBuf) -> anyhow::Result<()> {
@@ -292,7 +292,7 @@ async fn account_list(config_root: &PathBuf) -> anyhow::Result<()> {
 }
 
 #[derive(Parser, Clone)]
-pub struct SsAccountLoginCommand {
+pub(crate) struct SsAccountLoginCommand {
     /// 帐号名称，在后续投稿时需要作为参数传递进来
     name: String,
 }
@@ -313,7 +313,7 @@ async fn account_login(this: &SsAccountLoginCommand, config_root: &PathBuf) -> a
 }
 
 #[derive(Parser, Clone)]
-pub struct SsAccountLogoutCommand {
+pub(crate) struct SsAccountLogoutCommand {
     /// 待删除登录凭据的帐号名称
     name: String,
 }

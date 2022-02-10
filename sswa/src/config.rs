@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct Config {
+pub(crate) struct Config {
     /// 手动选择线路
     pub line: Option<String>,
     pub default_user: Option<String>,
@@ -10,7 +10,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Config {
             line: None,
             default_user: None,
@@ -18,7 +18,7 @@ impl Config {
         }
     }
 
-    pub fn scale_cover(&self) -> bool {
+    pub(crate) fn need_scale_cover(&self) -> bool {
         self.scale_cover.unwrap_or(false)
     }
 }
