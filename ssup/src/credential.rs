@@ -75,6 +75,25 @@ impl Credential {
             }
         }
     }
+
+    pub async fn get_nickname(&self) -> anyhow::Result<String> {
+        let response: ResponseData = reqwest::Client::new()
+            .get("https://api.bilibili.com/x/web-interface/nav")
+            .header("Cookie", self.cookie_info.to_string())
+            .send()
+            .await?
+            .json()
+            .await?;
+        if response.code != 0 {
+            bail!("{:#?}", response)
+        }
+        match response.data {
+            ResponseValue::Value(data) => {
+                Ok(data["uname"].as_str().unwrap().to_string())
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 /// 存储 Cookie 信息
@@ -86,6 +105,16 @@ pub(crate) struct CookieInfo {
 impl CookieInfo {
     pub fn get(&self, key: &str) -> Option<&str> {
         self.cookies.iter().find(|entry| entry.name == key).map(|entry| entry.value.as_str())
+    }
+}
+
+impl ToString for CookieInfo {
+    fn to_string(&self) -> String {
+        self.cookies
+            .iter()
+            .map(|entry| entry.to_string())
+            .collect::<Vec<String>>()
+            .join("; ")
     }
 }
 
@@ -101,6 +130,12 @@ impl CookieEntry {
         Cookie::build(self.name.clone(), self.value.clone())
             .domain("bilibili.com")
             .finish()
+    }
+}
+
+impl ToString for CookieEntry {
+    fn to_string(&self) -> String {
+        format!("{}={}", self.name, self.value)
     }
 }
 

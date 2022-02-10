@@ -22,6 +22,9 @@ sswa config
 3. 使用命令：
 
 ```bash
+# 登录
+# 这里 your_name 随便写，顺手就行，之后投稿会用到
+sswa login your_name
 # 以 your_name 用户投稿，模板为 your_template_name，视频文件为 video.mkv，分P名为 video
 sswa upload --user your_name --template your_template_name video.mkv
 ```

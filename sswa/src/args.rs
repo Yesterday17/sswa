@@ -71,7 +71,7 @@ impl Handler for Args {
 pub(crate) enum SsCommand {
     /// 输出配置文件所在路径
     Config(SsConfigCommand),
-    /// 上传视频相关功能
+    /// 上传视频
     Upload(SsUploadCommand),
     /// 帐号登录
     Login(SsAccountLoginCommand),
@@ -127,20 +127,22 @@ impl SsUploadCommand {
             .join(format!("{}.json", self.account.as_deref().or(default_user).expect("account not specified")));
         if account.exists() {
             // 凭据存在，读取并返回
-            let account = fs::read_to_string(account).await?;
-            let account = serde_json::from_str(&account)?;
-
-            // TODO: 验证登录是否有效
-
-            Ok(account)
-        } else {
-            // 凭据不存在，新登录
-            let qrcode = Credential::get_qrcode().await?;
-            eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
-            let credential = Credential::from_qrcode(qrcode).await?;
-            fs::write(account, serde_json::to_string(&credential)?).await?;
-            Ok(credential)
+            let account = fs::read_to_string(&account).await?;
+            let account: Credential = serde_json::from_str(&account)?;
+            if let Ok(nickname) = account.get_nickname().await {
+                eprintln!("投稿用户：{nickname}");
+                return Ok(account);
+            } else {
+                eprintln!("登录已失效！请重新登录。");
+            }
         }
+
+        // 凭据不存在，新登录
+        let qrcode = Credential::get_qrcode().await?;
+        eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
+        let credential = Credential::from_qrcode(qrcode).await?;
+        fs::write(account, serde_json::to_string(&credential)?).await?;
+        Ok(credential)
     }
 
     /// 尝试导入视频模板
@@ -308,7 +310,8 @@ async fn account_login(this: &SsAccountLoginCommand, config_root: &PathBuf) -> a
     eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
     let credential = Credential::from_qrcode(qrcode).await?;
     fs::write(account_path, serde_json::to_string(&credential)?).await?;
-    eprintln!("帐号 {} 已登录！", this.name);
+    let nickname = credential.get_nickname().await?;
+    eprintln!("帐号 {} 已登录！帐号名为：{nickname}", this.name);
     Ok(())
 }
 
