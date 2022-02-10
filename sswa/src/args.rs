@@ -11,7 +11,7 @@ use crate::config::Config;
 use crate::ffmpeg;
 use crate::template::VideoTemplate;
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Clone)]
 pub struct Args {
     /// 配置文件所在的目录，留空时默认通过 directories-next 获取
     #[clap(short, long)]
@@ -67,15 +67,17 @@ impl Handler for Args {
     }
 }
 
-#[derive(Parser, Handler, Debug, Clone)]
+#[derive(Parser, Handler, Clone)]
 pub enum SsCommand {
     /// 输出配置文件所在路径
     Config(SsConfigCommand),
     /// 上传视频相关功能
     Upload(SsUploadCommand),
+    /// 帐号管理相关功能
+    Account(SsAccountCommand),
 }
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Clone)]
 pub struct SsConfigCommand;
 
 #[handler(SsConfigCommand)]
@@ -84,7 +86,7 @@ async fn handle_config(config_root: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Clone)]
 pub struct SsUploadCommand {
     /// 投稿使用的模板
     #[clap(short, long)]
@@ -130,7 +132,7 @@ impl SsUploadCommand {
         } else {
             // 凭据不存在，新登录
             let qrcode = Credential::get_qrcode().await?;
-            eprintln!("qrcode = {}", qrcode);
+            eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
             let credential = Credential::from_qrcode(qrcode).await?;
             fs::write(account, serde_json::to_string(&credential)?).await?;
             Ok(credential)
@@ -264,5 +266,76 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     let video = template.into_video(parts, cover).await?;
     client.submit(video).await?;
     eprintln!("投稿成功！");
+    Ok(())
+}
+
+#[derive(Parser, Handler, Clone)]
+pub struct SsAccountCommand {
+    #[clap(subcommand)]
+    command: SsAccountSubcommand,
+}
+
+#[derive(Parser, Handler, Clone)]
+pub enum SsAccountSubcommand {
+    /// 列出可用的所有用户
+    List(SsAccountListCommand),
+    /// 新增投稿用户
+    Login(SsAccountLoginCommand),
+    /// 删除投稿用户
+    Logout(SsAccountLogoutCommand),
+}
+
+#[derive(Parser, Clone)]
+pub struct SsAccountListCommand;
+
+#[handler(SsAccountListCommand)]
+async fn account_list(config_root: &PathBuf) -> anyhow::Result<()> {
+    let accounts = config_root.join("accounts");
+    let mut dir = fs::read_dir(accounts).await?;
+    while let Some(next) = dir.next_entry().await? {
+        if let Some("json") = next.path().extension().map(|s| s.to_str().unwrap()) {
+            println!("{}", next.path().file_stem().unwrap().to_string_lossy());
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Parser, Clone)]
+pub struct SsAccountLoginCommand {
+    /// 帐号名称，在后续投稿时需要作为参数传递进来
+    name: String,
+}
+
+#[handler(SsAccountLoginCommand)]
+async fn account_login(this: &SsAccountLoginCommand, config_root: &PathBuf) -> anyhow::Result<()> {
+    let account_path = config_root.join("accounts").join(format!("{}.toml", this.name));
+    if account_path.exists() {
+        bail!("帐号 {} 已存在！", this.name);
+    }
+
+    let qrcode = Credential::get_qrcode().await?;
+    eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
+    let credential = Credential::from_qrcode(qrcode).await?;
+    fs::write(account_path, serde_json::to_string(&credential)?).await?;
+    eprintln!("帐号 {} 已登录！", this.name);
+    Ok(())
+}
+
+#[derive(Parser, Clone)]
+pub struct SsAccountLogoutCommand {
+    /// 待删除登录凭据的帐号名称
+    name: String,
+}
+
+#[handler(SsAccountLogoutCommand)]
+async fn account_logout(this: &SsAccountLogoutCommand, config_root: &PathBuf) -> anyhow::Result<()> {
+    let account_path = config_root.join("accounts").join(format!("{}.toml", this.name));
+    if !account_path.exists() {
+        bail!("帐号 {} 不存在！", this.name);
+    }
+
+    fs::remove_file(account_path).await?;
+    eprintln!("帐号 {} 已删除！", this.name);
     Ok(())
 }
