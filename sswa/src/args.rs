@@ -73,8 +73,12 @@ pub enum SsCommand {
     Config(SsConfigCommand),
     /// 上传视频相关功能
     Upload(SsUploadCommand),
-    /// 帐号管理相关功能
-    Account(SsAccountCommand),
+    /// 帐号登录
+    Login(SsAccountLoginCommand),
+    /// 帐号登出
+    Logout(SsAccountLogoutCommand),
+    /// 列出已登录帐号
+    Accounts(SsAccountListCommand),
 }
 
 #[derive(Parser, Clone)]
@@ -269,22 +273,6 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     client.submit(video).await?;
     eprintln!("投稿成功！");
     Ok(())
-}
-
-#[derive(Parser, Handler, Clone)]
-pub struct SsAccountCommand {
-    #[clap(subcommand)]
-    command: SsAccountSubcommand,
-}
-
-#[derive(Parser, Handler, Clone)]
-pub enum SsAccountSubcommand {
-    /// 列出可用的所有用户
-    List(SsAccountListCommand),
-    /// 新增投稿用户
-    Login(SsAccountLoginCommand),
-    /// 删除投稿用户
-    Logout(SsAccountLogoutCommand),
 }
 
 #[derive(Parser, Clone)]
