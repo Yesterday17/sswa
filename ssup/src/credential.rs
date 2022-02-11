@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::bail;
 use cookie::Cookie;
@@ -94,15 +95,49 @@ impl Credential {
             _ => unreachable!(),
         }
     }
+
+    pub async fn from_cookies(cookies: &CookieInfo) -> anyhow::Result<Self> {
+        let qrcode = Self::get_qrcode().await?;
+        let form = json!({
+            "auth_code": qrcode["data"]["auth_code"],
+            "csrf": cookies.get("bili_jct").unwrap(),
+            "scanning_type": 3,
+        });
+        let response: ResponseData = reqwest::Client::new()
+            .post("https://passport.snm0516.aisee.tv/x/passport-tv-login/h5/qrcode/confirm")
+            .header("Cookie", cookies.to_string())
+            .form(&form)
+            .send()
+            .await?
+            .json()
+            .await?;
+        if response.code != 0 {
+            bail!("{:#?}", response)
+        }
+
+        Self::from_qrcode(qrcode).await
+    }
+
+    pub async fn refresh(&mut self) -> anyhow::Result<()> {
+        let refreshed = Credential::from_cookies(&self.cookie_info).await?;
+        self.cookie_info = refreshed.cookie_info;
+        self.token_info = refreshed.token_info;
+        self.sso = refreshed.sso;
+        Ok(())
+    }
 }
 
 /// 存储 Cookie 信息
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct CookieInfo {
+pub struct CookieInfo {
     pub(crate) cookies: Vec<CookieEntry>,
 }
 
 impl CookieInfo {
+    pub fn new(cookies: Vec<CookieEntry>) -> Self {
+        Self { cookies }
+    }
+
     pub fn get(&self, key: &str) -> Option<&str> {
         self.cookies.iter().find(|entry| entry.name == key).map(|entry| entry.value.as_str())
     }
@@ -120,7 +155,7 @@ impl ToString for CookieInfo {
 
 /// Cookie 项
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct CookieEntry {
+pub struct CookieEntry {
     name: String,
     value: String,
 }
@@ -130,6 +165,20 @@ impl CookieEntry {
         Cookie::build(self.name.clone(), self.value.clone())
             .domain("bilibili.com")
             .finish()
+    }
+}
+
+impl FromStr for CookieEntry {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.splitn(2, '=');
+        let name = parts.next().ok_or_else(|| anyhow::anyhow!("CookieEntry::from_str: no name"))?;
+        let value = parts.next().ok_or_else(|| anyhow::anyhow!("CookieEntry::from_str: no value"))?;
+        Ok(Self {
+            name: name.to_string(),
+            value: value.to_string(),
+        })
     }
 }
 

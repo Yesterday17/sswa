@@ -7,4 +7,4 @@ mod credential;
 
 pub use client::Client;
 pub use line::UploadLine;
-pub use credential::Credential;
+pub use credential::{Credential, CookieInfo, CookieEntry};

@@ -1,11 +1,12 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 use clap::Parser;
 use anni_clap_handler::{Context as ClapContext, Handler, handler};
 use anyhow::{bail, Context};
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::Rng;
 use tokio::fs;
-use ssup::{Client, Credential, UploadLine};
+use ssup::{Client, Credential, CookieInfo, UploadLine, CookieEntry};
 use ssup::constants::set_useragent;
 use crate::config::Config;
 use crate::ffmpeg;
@@ -295,20 +296,29 @@ async fn account_list(config_root: &PathBuf) -> anyhow::Result<()> {
 
 #[derive(Parser, Clone)]
 pub(crate) struct SsAccountLoginCommand {
+    /// 可选的 cookie，用于自动登录
+    #[clap(short, long = "cookie")]
+    cookies: Vec<String>,
     /// 帐号名称，在后续投稿时需要作为参数传递进来
     name: String,
 }
 
 #[handler(SsAccountLoginCommand)]
 async fn account_login(this: &SsAccountLoginCommand, config_root: &PathBuf) -> anyhow::Result<()> {
-    let account_path = config_root.join("accounts").join(format!("{}.toml", this.name));
+    let account_path = config_root.join("accounts").join(format!("{}.json", this.name));
     if account_path.exists() {
         bail!("帐号 {} 已存在！", this.name);
     }
 
-    let qrcode = Credential::get_qrcode().await?;
-    eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
-    let credential = Credential::from_qrcode(qrcode).await?;
+    let credential = if this.cookies.is_empty() {
+        let qrcode = Credential::get_qrcode().await?;
+        eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
+        Credential::from_qrcode(qrcode).await?
+    } else {
+        let cookies: Vec<_> = this.cookies.iter().filter_map(|c| CookieEntry::from_str(c).ok()).collect();
+        Credential::from_cookies(&CookieInfo::new(cookies)).await?
+    };
+
     fs::write(account_path, serde_json::to_string(&credential)?).await?;
     let nickname = credential.get_nickname().await?;
     eprintln!("帐号 {} 已登录！帐号名为：{nickname}", this.name);
@@ -323,7 +333,7 @@ pub(crate) struct SsAccountLogoutCommand {
 
 #[handler(SsAccountLogoutCommand)]
 async fn account_logout(this: &SsAccountLogoutCommand, config_root: &PathBuf) -> anyhow::Result<()> {
-    let account_path = config_root.join("accounts").join(format!("{}.toml", this.name));
+    let account_path = config_root.join("accounts").join(format!("{}.json", this.name));
     if !account_path.exists() {
         bail!("帐号 {} 不存在！", this.name);
     }
