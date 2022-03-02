@@ -1,8 +1,9 @@
+use date_time_parser::{DateParser, TimeParser};
+use serde::Deserialize;
+use ssup::video::{Subtitle, Video, VideoPart};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::exit;
-use ssup::video::{Subtitle, VideoPart, Video};
-use serde::Deserialize;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -22,6 +23,8 @@ pub(crate) struct VideoTemplate {
     /// 标签
     #[serde(default)]
     tags: Vec<TemplateString>,
+    /// 发布时间
+    display_time: Option<String>,
     /// 前缀视频
     #[serde(default)]
     video_prefix: Vec<TemplateString>,
@@ -56,6 +59,8 @@ impl VideoTemplate {
             }
         }
 
+        self.display_timestamp()?;
+
         for video in self.video_prefix.iter() {
             video.to_string(&self.variables)?;
         }
@@ -79,15 +84,43 @@ impl VideoTemplate {
         Ok(())
     }
 
-    pub(crate) async fn into_video(self, parts: Vec<VideoPart>, cover: String) -> anyhow::Result<Video> {
+    fn forward_source(&self) -> String {
+        if let Some(source) = &self.forward_source {
+            source.to_string(&self.variables).unwrap()
+        } else {
+            String::new()
+        }
+    }
+
+    fn display_timestamp(&self) -> anyhow::Result<Option<i64>> {
+        Ok(match &self.display_time {
+            Some(display_time) => {
+                if display_time.is_empty() {
+                    None
+                } else {
+                    let date = DateParser::parse(&display_time);
+                    let time = TimeParser::parse(&display_time);
+                    match (date, time) {
+                        (Some(date), Some(time)) => Some(date.and_time(time).timestamp()),
+                        _ => anyhow::bail!("定时投稿时间解析失败！"),
+                    }
+                }
+            }
+            None => None,
+        })
+    }
+
+    pub(crate) async fn into_video(
+        self,
+        parts: Vec<VideoPart>,
+        cover: String,
+    ) -> anyhow::Result<Video> {
         Ok(Video {
             copyright: match &self.forward_source {
                 Some(source) if !source.is_empty() => 2,
                 _ => 1,
             },
-            source: self.forward_source
-                .and_then(|s| s.to_string(&self.variables).ok())
-                .unwrap_or("".into()),
+            source: self.forward_source(),
             tid: self.tid,
             cover,
             title: self.title.to_string(&self.variables)?,
@@ -98,16 +131,18 @@ impl VideoTemplate {
                 open: 0,
                 lan: "".to_string(),
             },
-            tag: self.tags.iter()
+            tag: self
+                .tags
+                .iter()
                 .map(|s| s.to_string(&self.variables))
                 .filter_map(|s| match s {
                     Ok(s) if !s.is_empty() => Some(s),
-                    _ => None
+                    _ => None,
                 })
                 .collect::<Vec<_>>()
                 .join(","),
             videos: parts,
-            display_time: None,
+            display_time: self.display_timestamp()?,
             open_subtitle: false,
         })
     }
@@ -117,11 +152,12 @@ impl VideoTemplate {
     }
 
     pub(crate) fn video_prefix(&self) -> Vec<PathBuf> {
-        self.video_prefix.iter()
+        self.video_prefix
+            .iter()
             .map(|s| s.to_string(&self.variables))
             .filter_map(|s| match s {
                 Ok(s) if !s.is_empty() => Some(s),
-                _ => None
+                _ => None,
             })
             .map(|s| PathBuf::from(s))
             .collect()
@@ -132,11 +168,12 @@ impl VideoTemplate {
     }
 
     pub(crate) fn video_suffix(&self) -> Vec<PathBuf> {
-        self.video_suffix.iter()
+        self.video_suffix
+            .iter()
             .map(|s| s.to_string(&self.variables))
             .filter_map(|s| match s {
                 Ok(s) if !s.is_empty() => Some(s),
-                _ => None
+                _ => None,
             })
             .map(|s| PathBuf::from(s))
             .collect()
@@ -153,13 +190,14 @@ struct TemplateString(String);
 impl TemplateString {
     fn to_string(&self, description: &HashMap<String, String>) -> anyhow::Result<String> {
         let regex = regex::Regex::new(r"\{\{(.*?)\}\}").unwrap();
-        let matches = regex.captures_iter(&self.0)
+        let matches = regex
+            .captures_iter(&self.0)
             .map(|c| c[1].to_string())
             .collect::<Vec<_>>();
         let mut result = self.0.clone();
         if !matches.is_empty() {
             for variable in matches.iter() {
-                let var = dotenv::var(&variable).or_else(|_| -> anyhow::Result<_>{
+                let var = dotenv::var(&variable).or_else(|_| -> anyhow::Result<_> {
                     if variable.starts_with("ss") {
                         anyhow::bail!("未定义的预设变量：{}", variable)
                     };
@@ -170,7 +208,9 @@ impl TemplateString {
                     };
 
                     // 用户输入变量
-                    let question = requestty::Question::input(variable).message(description).build();
+                    let question = requestty::Question::input(variable)
+                        .message(description)
+                        .build();
                     let ans = requestty::prompt_one(question)?;
                     let ans = ans.as_string().unwrap();
                     std::env::set_var(&variable, ans);

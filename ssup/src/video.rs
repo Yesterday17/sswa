@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// 视频
 #[derive(Serialize)]
@@ -24,7 +24,7 @@ pub struct Video {
     pub videos: Vec<VideoPart>,
     /// 秒为单位的定时投稿时间
     #[serde(rename = "dtime")]
-    pub display_time: Option<i32>,
+    pub display_time: Option<i64>,
     pub open_subtitle: bool,
 }
 
