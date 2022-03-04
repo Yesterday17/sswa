@@ -11,7 +11,7 @@ anni-clap-handler = { git = "https://github.com/ProjectAnni/anni", features = ["
 directories-next = "2.0.0"
 tempfile = "3.3.0"
 
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread", "macros"] }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -21,7 +21,7 @@ log = "0.4.14"
 
 requestty = "0.3.0"
 dotenv = "0.15.0"
-indicatif = { version = "0.17.0-rc.2", features = ["improved_unicode"] }
+indicatif = { version = "0.17.0-rc.6", features = ["improved_unicode"] }
 regex = "1"
 rand = "0.8.4"
 date_time_parser = "0.1.1"
