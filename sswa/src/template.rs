@@ -101,7 +101,7 @@ impl VideoTemplate {
                     let date = DateParser::parse(&display_time);
                     let time = TimeParser::parse(&display_time);
                     match (date, time) {
-                        (Some(date), Some(time)) => Some(date.and_time(time).timestamp()),
+                        (Some(date), Some(time)) => Some(date.and_time(time).timestamp() - 60 * 60 * 8),
                         _ => anyhow::bail!("定时投稿时间解析失败！"),
                     }
                 }

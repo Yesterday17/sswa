@@ -5,7 +5,9 @@ use serde::Deserialize;
 pub(crate) struct Config {
     /// 手动选择线路
     pub line: Option<String>,
+    /// 默认投稿用户
     pub default_user: Option<String>,
+    /// 默认是否缩放封面
     scale_cover: Option<bool>,
 }
 
