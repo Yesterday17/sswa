@@ -36,24 +36,27 @@ pub(crate) struct VideoTemplate {
     /// 变量解释
     #[serde(default)]
     variables: HashMap<String, String>,
+    /// 变量默认值
+    #[serde(default)]
+    defaults: HashMap<String, TemplateString>,
 }
 
 impl VideoTemplate {
     /// 校验模板字符串
     pub(crate) fn validate(&self, skip_confirm: bool) -> anyhow::Result<()> {
-        let title = self.title.to_string(&self.variables)?;
-        let desc = self.description.to_string(&self.variables)?;
-        let dynamic = self.dynamic_text.to_string(&self.variables)?;
+        let title = self.title.to_string(&self.variables, &self.defaults)?;
+        let desc = self.description.to_string(&self.variables, &self.defaults)?;
+        let dynamic = self.dynamic_text.to_string(&self.variables, &self.defaults)?;
 
         let forward_source = if let Some(forward_source) = &self.forward_source {
-            forward_source.to_string(&self.variables)?
+            forward_source.to_string(&self.variables, &self.defaults)?
         } else {
             String::new()
         };
 
         let mut tags = Vec::new();
         for tag in self.tags.iter() {
-            let result = tag.to_string(&self.variables)?;
+            let result = tag.to_string(&self.variables, &self.defaults)?;
             if !result.is_empty() {
                 tags.push(result);
             }
@@ -62,10 +65,10 @@ impl VideoTemplate {
         self.display_timestamp()?;
 
         for video in self.video_prefix.iter() {
-            video.to_string(&self.variables)?;
+            video.to_string(&self.variables, &self.defaults)?;
         }
         for video in self.video_suffix.iter() {
-            video.to_string(&self.variables)?;
+            video.to_string(&self.variables, &self.defaults)?;
         }
 
         if !skip_confirm {
@@ -86,7 +89,7 @@ impl VideoTemplate {
 
     fn forward_source(&self) -> String {
         if let Some(source) = &self.forward_source {
-            source.to_string(&self.variables).unwrap()
+            source.to_string(&self.variables, &self.defaults).unwrap()
         } else {
             String::new()
         }
@@ -123,10 +126,10 @@ impl VideoTemplate {
             source: self.forward_source(),
             tid: self.tid,
             cover,
-            title: self.title.to_string(&self.variables)?,
+            title: self.title.to_string(&self.variables, &self.defaults)?,
             desc_format_id: 0,
-            desc: self.description.to_string(&self.variables)?,
-            dynamic: self.dynamic_text.to_string(&self.variables)?,
+            desc: self.description.to_string(&self.variables, &self.defaults)?,
+            dynamic: self.dynamic_text.to_string(&self.variables, &self.defaults)?,
             subtitle: Subtitle {
                 open: 0,
                 lan: "".to_string(),
@@ -134,7 +137,7 @@ impl VideoTemplate {
             tag: self
                 .tags
                 .iter()
-                .map(|s| s.to_string(&self.variables))
+                .map(|s| s.to_string(&self.variables, &self.defaults))
                 .filter_map(|s| match s {
                     Ok(s) if !s.is_empty() => Some(s),
                     _ => None,
@@ -154,7 +157,7 @@ impl VideoTemplate {
     pub(crate) fn video_prefix(&self) -> Vec<PathBuf> {
         self.video_prefix
             .iter()
-            .map(|s| s.to_string(&self.variables))
+            .map(|s| s.to_string(&self.variables, &self.defaults))
             .filter_map(|s| match s {
                 Ok(s) if !s.is_empty() => Some(s),
                 _ => None,
@@ -170,7 +173,7 @@ impl VideoTemplate {
     pub(crate) fn video_suffix(&self) -> Vec<PathBuf> {
         self.video_suffix
             .iter()
-            .map(|s| s.to_string(&self.variables))
+            .map(|s| s.to_string(&self.variables, &self.defaults))
             .filter_map(|s| match s {
                 Ok(s) if !s.is_empty() => Some(s),
                 _ => None,
@@ -188,7 +191,7 @@ impl VideoTemplate {
 struct TemplateString(String);
 
 impl TemplateString {
-    fn to_string(&self, description: &HashMap<String, String>) -> anyhow::Result<String> {
+    fn to_string(&self, variable_description_map: &HashMap<String, String>, variable_default_value_map: &HashMap<String, TemplateString>) -> anyhow::Result<String> {
         let regex = regex::Regex::new(r"\{\{(.*?)\}\}").unwrap();
         let matches = regex
             .captures_iter(&self.0)
@@ -198,19 +201,22 @@ impl TemplateString {
         if !matches.is_empty() {
             for variable in matches.iter() {
                 let var = dotenv::var(&variable).or_else(|_| -> anyhow::Result<_> {
-                    if variable.starts_with("ss") {
+                    if variable.starts_with("ss_") {
                         anyhow::bail!("未定义的预设变量：{}", variable)
                     };
 
-                    let description = match description.get(variable) {
+                    let description = match variable_description_map.get(variable) {
                         Some(description) => format!("{description}({variable})"),
                         None => format!("{variable}"),
                     };
 
                     // 用户输入变量
-                    let question = requestty::Question::input(variable)
-                        .message(description)
-                        .build();
+                    let mut question = requestty::Question::input(variable)
+                        .message(description);
+                    if let Some(default) = variable_default_value_map.get(variable) {
+                        question = question.default(default.to_string(&variable_description_map, &variable_default_value_map)?);
+                    }
+                    let question = question.build();
                     let ans = requestty::prompt_one(question)?;
                     let ans = ans.as_string().unwrap();
                     std::env::set_var(&variable, ans);

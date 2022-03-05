@@ -39,3 +39,8 @@ translators = "翻译"
 jiaodui = "校对"
 subtitle = "时间轴"
 guests = "嘉宾 Tag"
+
+# 变量的默认值，在需要用户手动输入时作为默认文本
+[defaults]
+num = "123"
+title = "默认标题"
