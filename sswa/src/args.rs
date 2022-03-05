@@ -252,8 +252,8 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         p_filename.set_message(format!("{}", video.file_name().unwrap().to_string_lossy()));
         let pb = progress.add(ProgressBar::new(total_size as u64));
         let format = format!("{{spinner:.green}} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
-        pb.set_style(ProgressStyle::default_bar().template(&format)?);
-        pb.enable_steady_tick(Duration::new(1, 0));
+        pb.set_style(ProgressStyle::default_bar().template(&format));
+        pb.enable_steady_tick(1000);
 
         loop {
             tokio::select! {
