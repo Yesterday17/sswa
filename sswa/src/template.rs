@@ -4,7 +4,9 @@ use ssup::video::{Subtitle, Video, VideoPart};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::exit;
+use tinytemplate::instruction::PathStep;
 use tinytemplate::TinyTemplate;
+use crate::context::CONTEXT;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -40,52 +42,80 @@ pub(crate) struct VideoTemplate {
     /// 变量默认值
     #[serde(default)]
     defaults: HashMap<String, TemplateString>,
-
-    #[serde(skip)]
-    strings: Vec<String>,
 }
 
 impl VideoTemplate {
     /// 构建模板
-    pub(crate) fn build(&mut self) -> anyhow::Result<()> {
+    pub(crate) fn build(&self) -> anyhow::Result<TinyTemplate> {
         let mut template = TinyTemplate::new();
-        template.add_template("title".to_string(), &self.title.0)?;
-        template.add_template("description".to_string(), &self.description.0)?;
-        template.add_template("dynamic".to_string(), &self.dynamic_text.0)?;
+        template.add_unnamed_template(&self.title.0)?;
+        template.add_unnamed_template(&self.description.0)?;
+        template.add_unnamed_template(&self.dynamic_text.0)?;
 
         if let Some(forward_source) = &self.forward_source {
-            template.add_template("forward_source".to_string(), &forward_source.0)?;
+            template.add_unnamed_template(&forward_source.0)?;
         }
 
-        for (i, tag) in self.tags.iter().enumerate() {
-            template.add_template(format!("tag_{}", i), &tag.0)?;
+        for tag in self.tags.iter() {
+            template.add_unnamed_template(&tag.0)?;
         }
 
-        for (i, video) in self.video_prefix.iter().enumerate() {
-            template.add_template(format!("video_prefix_{}", i), &video.0)?;
+        for video in self.video_prefix.iter() {
+            template.add_unnamed_template(&video.0)?;
         }
 
-        for (i, video) in self.video_suffix.iter().enumerate() {
-            template.add_template(format!("video_suffix_{}", i), &video.0)?;
+        for video in self.video_suffix.iter() {
+            template.add_unnamed_template(&video.0)?;
         }
-        Ok(())
+
+        // 检查变量
+        let paths = template.get_paths();
+        for path in paths {
+            if path.len() == 1 {
+                // 暂时只检查一层变量
+                match path[0] {
+                    PathStep::Name(variable) => {
+                        if !CONTEXT.contains_key(variable) {
+                            let description = match self.variables.get(variable) {
+                                Some(description) => format!("{description}({variable})"),
+                                None => format!("{variable}"),
+                            };
+
+                            // 用户输入变量
+                            let mut question = requestty::Question::input(variable)
+                                .message(description);
+                            if let Some(default) = self.defaults.get(variable) {
+                                question = question.default(default.to_string(&template)?);
+                            }
+                            let question = question.build();
+                            let ans = requestty::prompt_one(question)?;
+                            let ans = ans.as_string().unwrap();
+
+                            CONTEXT.insert(variable.to_string(), ans);
+                        }
+                    }
+                    PathStep::Index(_, _) => {}
+                }
+            }
+        }
+        Ok(template)
     }
 
     /// 校验模板字符串
-    pub(crate) fn validate(&self, skip_confirm: bool) -> anyhow::Result<()> {
-        let title = self.title.to_string(&self.variables, &self.defaults)?;
-        let desc = self.description.to_string(&self.variables, &self.defaults)?;
-        let dynamic = self.dynamic_text.to_string(&self.variables, &self.defaults)?;
+    pub(crate) fn validate(&self, template: &TinyTemplate, skip_confirm: bool) -> anyhow::Result<()> {
+        let title = self.title.to_string(&template)?;
+        let desc = self.description.to_string(&template)?;
+        let dynamic = self.dynamic_text.to_string(&template)?;
 
         let forward_source = if let Some(forward_source) = &self.forward_source {
-            forward_source.to_string(&self.variables, &self.defaults)?
+            forward_source.to_string(&template)?
         } else {
             String::new()
         };
 
         let mut tags = Vec::new();
         for tag in self.tags.iter() {
-            let result = tag.to_string(&self.variables, &self.defaults)?;
+            let result = tag.to_string(&template)?;
             if !result.is_empty() {
                 tags.push(result);
             }
@@ -94,10 +124,10 @@ impl VideoTemplate {
         self.display_timestamp()?;
 
         for video in self.video_prefix.iter() {
-            video.to_string(&self.variables, &self.defaults)?;
+            video.to_string(&template)?;
         }
         for video in self.video_suffix.iter() {
-            video.to_string(&self.variables, &self.defaults)?;
+            video.to_string(&template)?;
         }
 
         if !skip_confirm {
@@ -116,9 +146,9 @@ impl VideoTemplate {
         Ok(())
     }
 
-    fn forward_source(&self) -> String {
+    fn forward_source(&self, template: &TinyTemplate) -> String {
         if let Some(source) = &self.forward_source {
-            source.to_string(&self.variables, &self.defaults).unwrap()
+            source.to_string(&template).unwrap()
         } else {
             String::new()
         }
@@ -142,8 +172,9 @@ impl VideoTemplate {
         })
     }
 
-    pub(crate) async fn into_video(
-        self,
+    pub(crate) fn to_video(
+        &self,
+        template: &TinyTemplate<'_>,
         parts: Vec<VideoPart>,
         cover: String,
     ) -> anyhow::Result<Video> {
@@ -152,13 +183,13 @@ impl VideoTemplate {
                 Some(source) if !source.is_empty() => 2,
                 _ => 1,
             },
-            source: self.forward_source(),
+            source: self.forward_source(&template),
             tid: self.tid,
             cover,
-            title: self.title.to_string(&self.variables, &self.defaults)?,
+            title: self.title.to_string(&template)?,
             desc_format_id: 0,
-            desc: self.description.to_string(&self.variables, &self.defaults)?,
-            dynamic: self.dynamic_text.to_string(&self.variables, &self.defaults)?,
+            desc: self.description.to_string(&template)?,
+            dynamic: self.dynamic_text.to_string(&template)?,
             subtitle: Subtitle {
                 open: 0,
                 lan: "".to_string(),
@@ -166,7 +197,7 @@ impl VideoTemplate {
             tag: self
                 .tags
                 .iter()
-                .map(|s| s.to_string(&self.variables, &self.defaults))
+                .map(|s| s.to_string(&template))
                 .filter_map(|s| match s {
                     Ok(s) if !s.is_empty() => Some(s),
                     _ => None,
@@ -183,10 +214,10 @@ impl VideoTemplate {
         self.cover.is_empty() || self.cover == "auto"
     }
 
-    pub(crate) fn video_prefix(&self) -> Vec<PathBuf> {
+    pub(crate) fn video_prefix(&self, template: &TinyTemplate) -> Vec<PathBuf> {
         self.video_prefix
             .iter()
-            .map(|s| s.to_string(&self.variables, &self.defaults))
+            .map(|s| s.to_string(&template))
             .filter_map(|s| match s {
                 Ok(s) if !s.is_empty() => Some(s),
                 _ => None,
@@ -199,10 +230,10 @@ impl VideoTemplate {
         self.video_prefix.len()
     }
 
-    pub(crate) fn video_suffix(&self) -> Vec<PathBuf> {
+    pub(crate) fn video_suffix(&self, template: &TinyTemplate) -> Vec<PathBuf> {
         self.video_suffix
             .iter()
-            .map(|s| s.to_string(&self.variables, &self.defaults))
+            .map(|s| s.to_string(&template))
             .filter_map(|s| match s {
                 Ok(s) if !s.is_empty() => Some(s),
                 _ => None,
@@ -220,42 +251,8 @@ impl VideoTemplate {
 struct TemplateString(String);
 
 impl TemplateString {
-    fn to_string(&self, variable_description_map: &HashMap<String, String>, variable_default_value_map: &HashMap<String, TemplateString>) -> anyhow::Result<String> {
-        let regex = regex::Regex::new(r"\{\{(.*?)\}\}").unwrap();
-        let matches = regex
-            .captures_iter(&self.0)
-            .map(|c| c[1].to_string())
-            .collect::<Vec<_>>();
-        let mut result = self.0.clone();
-        if !matches.is_empty() {
-            for variable in matches.iter() {
-                let var = dotenv::var(&variable).or_else(|_| -> anyhow::Result<_> {
-                    if variable.starts_with("ss_") {
-                        anyhow::bail!("未定义的预设变量：{}", variable)
-                    };
-
-                    let description = match variable_description_map.get(variable) {
-                        Some(description) => format!("{description}({variable})"),
-                        None => format!("{variable}"),
-                    };
-
-                    // 用户输入变量
-                    let mut question = requestty::Question::input(variable)
-                        .message(description);
-                    if let Some(default) = variable_default_value_map.get(variable) {
-                        question = question.default(default.to_string(&variable_description_map, &variable_default_value_map)?);
-                    }
-                    let question = question.build();
-                    let ans = requestty::prompt_one(question)?;
-                    let ans = ans.as_string().unwrap();
-                    std::env::set_var(&variable, ans);
-                    let ans = dotenv::var(&variable)?;
-                    Ok(ans)
-                })?;
-                result = result.replace(&format!("{{{{{variable}}}}}"), &var);
-            }
-        }
-        Ok(result)
+    fn to_string(&self, template: &TinyTemplate) -> anyhow::Result<String> {
+        Ok(template.render(&self.0, &*CONTEXT.0.read())?)
     }
 
     fn is_empty(&self) -> bool {

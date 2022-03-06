@@ -3,7 +3,7 @@
 use crate::compiler::TemplateCompiler;
 use crate::error::Error::*;
 use crate::error::*;
-use crate::instruction::{Instruction, PathSlice, PathStep};
+use crate::instruction::{Instruction, Path, PathSlice, PathStep};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -131,8 +131,8 @@ impl<'template> Template<'template> {
     pub fn render(
         &self,
         context: &Value,
-        template_registry: &HashMap<String, Template>,
-        formatter_registry: &HashMap<String, Box<ValueFormatter>>,
+        template_registry: &HashMap<&'template str, Template>,
+        formatter_registry: &HashMap<&'template str, Box<ValueFormatter>>,
         default_formatter: &ValueFormatter,
     ) -> Result<String> {
         // The length of the original template seems like a reasonable guess at the length of the
@@ -152,8 +152,8 @@ impl<'template> Template<'template> {
     pub fn render_into(
         &self,
         context: &Value,
-        template_registry: &HashMap<String, Template>,
-        formatter_registry: &HashMap<String, Box<ValueFormatter>>,
+        template_registry: &HashMap<&'template str, Template>,
+        formatter_registry: &HashMap<&'template str, Box<ValueFormatter>>,
         default_formatter: &ValueFormatter,
         output: &mut String,
     ) -> Result<()> {
@@ -343,6 +343,18 @@ impl<'template> Template<'template> {
         };
         Ok(truthy)
     }
+
+    pub(crate) fn paths(&self) -> Vec<&Path<'template>> {
+        self.instructions.iter().filter_map(|i| match i {
+            Instruction::Value(value) => Some(value),
+            Instruction::FormattedValue(value, _formatter) => Some(value),
+            Instruction::Branch(condition, _, _) => Some(condition),
+            // Instruction::PushNamedContext(context, _) => Some(context),
+            // Instruction::PushIterationContext(context, _) => Some(context),
+            Instruction::Call(_template_name, context) => Some(context),
+            _ => None,
+        }).collect()
+    }
 }
 
 #[cfg(test)]
@@ -387,9 +399,9 @@ mod test {
         ::serde_json::to_value(&ctx).unwrap()
     }
 
-    fn other_templates() -> HashMap<String, Template<'static>> {
+    fn other_templates() -> HashMap<&'static str, Template<'static>> {
         let mut map = HashMap::new();
-        map.insert("my_macro".to_string(), compile("{{value}}"));
+        map.insert("my_macro", compile("{{value}}"));
         map
     }
 
@@ -400,14 +412,14 @@ mod test {
         Ok(())
     }
 
-    fn formatters() -> HashMap<String, Box<ValueFormatter>> {
-        let mut map = HashMap::<String, Box<ValueFormatter>>::new();
-        map.insert("my_formatter".to_string(), Box::new(format));
+    fn formatters() -> HashMap<&'static str, Box<ValueFormatter>> {
+        let mut map = HashMap::<&'static str, Box<ValueFormatter>>::new();
+        map.insert("my_formatter", Box::new(format));
         map
     }
 
-    pub fn default_formatter() -> &'static ValueFormatter {
-        &crate::format
+    pub fn default_formatter() -> Box<ValueFormatter> {
+        Box::new(crate::format)
     }
 
     #[test]
@@ -793,7 +805,7 @@ mod test {
         let context = context();
         let template_registry = other_templates();
         let mut formatter_registry = formatters();
-        formatter_registry.insert("unescaped".to_string(), Box::new(crate::format_unescaped));
+        formatter_registry.insert("unescaped", Box::new(crate::format_unescaped));
         let string = template
             .render(
                 &context,

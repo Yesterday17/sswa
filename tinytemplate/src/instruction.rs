@@ -11,7 +11,7 @@ use std::ops::Deref;
 
 /// Enum for a step in a path which optionally contains a parsed index.
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub(crate) enum PathStep<'template> {
+pub enum PathStep<'template> {
     Name(&'template str),
     Index(&'template str, usize),
 }
@@ -27,7 +27,7 @@ impl<'template> Deref for PathStep<'template> {
 }
 
 /// Sequence of named steps used for looking up values in the context
-pub(crate) type Path<'template> = Vec<PathStep<'template>>;
+pub type Path<'template> = Vec<PathStep<'template>>;
 
 /// Path, but as a slice.
 pub(crate) type PathSlice<'a, 'template> = &'a [PathStep<'template>];

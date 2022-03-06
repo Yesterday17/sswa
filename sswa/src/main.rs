@@ -6,6 +6,7 @@ mod config;
 mod args;
 mod template;
 mod ffmpeg;
+mod context;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

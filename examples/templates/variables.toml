@@ -1,13 +1,13 @@
 # 以去除扩展名的第一个文件的文件名为标题
-title = "{{ss_file_stem}}"
+title = "{{$file_stem}}"
 description = "上传文件名：{{ss_file_name}}，包含扩展名"
 tid = 152
 # 封面为 config 目录下的 cover.jpg
-cover = "{{ss_config_path}}/cover.jpg"
+cover = "{{$config_path}}/cover.jpg"
 dynamic-text = ""
 video-prefix = [
     # 第一个视频同目录下的 prefix.mkv
-    "{{ss_file_pwd}}/prefix.mkv",
+    "{{$file_pwd}}/prefix.mkv",
     # 重复上传一遍第一个视频（很神秘）
-    "{{ss_file_pwd}}/{{ss_file_name}}",
+    "{{$file_pwd}}/{{$file_name}}",
 ]

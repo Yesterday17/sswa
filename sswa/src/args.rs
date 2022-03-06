@@ -9,6 +9,7 @@ use tokio::fs;
 use ssup::{Client, Credential, CookieInfo, UploadLine, CookieEntry};
 use ssup::constants::set_useragent;
 use crate::config::Config;
+use crate::context::CONTEXT;
 use crate::ffmpeg;
 use crate::template::VideoTemplate;
 
@@ -174,16 +175,19 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     let progress = indicatif::MultiProgress::new();
 
     // 加载模板
-    let mut template = this.template(&config_root).await?;
-    // 预定义变量，在 this.template 方法之后执行，覆盖所有可能冲突的环境变量
-    std::env::set_var("ss_config_root", config_root.as_os_str());
-    std::env::set_var("ss_file_name", this.videos[0].file_name().unwrap());
-    std::env::set_var("ss_file_stem", this.videos[0].file_stem().unwrap());
-    std::env::set_var("ss_file_pwd", this.videos[0].canonicalize()?.parent().unwrap().as_os_str());
+    let template = this.template(&config_root).await?;
+
+    // 预定义变量
+    CONTEXT.insert_sys("$config_root".to_string(), config_root);
+    CONTEXT.insert_sys("$file_name".to_string(), this.videos[0].file_name().unwrap());
+    CONTEXT.insert_sys("$file_stem".to_string(), this.videos[0].file_stem().unwrap());
+    CONTEXT.insert_sys("$file_pwd".to_string(), this.videos[0].canonicalize()?.parent().unwrap());
+
     // 模板字符串编译
-    template.build()?;
+    let tmpl = template.build().with_context(|| "build template")?;
+
     // 模板变量检查
-    template.validate(this.skip_confirm).with_context(|| "validate template")?;
+    template.validate(&tmpl, this.skip_confirm).with_context(|| "validate template")?;
 
     // 用户登录检查
     let credential = this.credential(config_root, template.default_user.as_deref().or(config.default_user.as_deref())).await?;
@@ -230,9 +234,9 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 准备分P
     let mut parts = Vec::with_capacity(this.videos.len() + template.video_prefix_len() + template.video_suffix_len());
-    let video_files: Vec<_> = template.video_prefix().into_iter()
+    let video_files: Vec<_> = template.video_prefix(&tmpl).into_iter()
         .chain(this.videos.clone().into_iter())
-        .chain(template.video_suffix().into_iter()).collect();
+        .chain(template.video_suffix(&tmpl).into_iter()).collect();
     // 检查文件存在
     for video in video_files.iter() {
         if !video.exists() {
@@ -273,7 +277,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     }
 
     // 提交视频
-    let video = template.into_video(parts, cover).await?;
+    let video = template.to_video(&tmpl, parts, cover)?;
     client.submit(video).await?;
     eprintln!("投稿成功！");
     Ok(())

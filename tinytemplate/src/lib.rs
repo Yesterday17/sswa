@@ -45,7 +45,7 @@
 //!
 //! pub fn main() -> Result<(), Box<dyn Error>> {
 //!     let mut tt = TinyTemplate::new();
-//!     tt.add_template("hello".to_string(), TEMPLATE)?;
+//!     tt.add_template("hello", TEMPLATE)?;
 //!
 //!     let context = Context {
 //!         name: "World".to_string(),
@@ -71,7 +71,7 @@ extern crate serde_derive;
 
 mod compiler;
 pub mod error;
-mod instruction;
+pub mod instruction;
 pub mod syntax;
 mod template;
 
@@ -81,9 +81,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Write;
 use template::Template;
+use crate::instruction::Path;
 
 /// Type alias for closures which can be used as value formatters.
-pub type ValueFormatter = dyn Fn(&Value, &mut String) -> Result<()>;
+pub type ValueFormatter = fn(&Value, &mut String) -> Result<()>;
 
 /// Appends `value` to `output`, performing HTML-escaping in the process.
 pub fn escape(value: &str, output: &mut String) {
@@ -167,9 +168,9 @@ pub fn format_unescaped(value: &Value, output: &mut String) -> Result<()> {
 /// template and formatter registries and provides functions to render templates as well as to
 /// register templates and formatters.
 pub struct TinyTemplate<'template> {
-    templates: HashMap<String, Template<'template>>,
-    formatters: HashMap<String, Box<ValueFormatter>>,
-    default_formatter: &'template ValueFormatter,
+    templates: HashMap<&'template str, Template<'template>>,
+    formatters: HashMap<&'template str, Box<ValueFormatter>>,
+    default_formatter: Box<ValueFormatter>,
 }
 
 impl<'template> TinyTemplate<'template> {
@@ -179,33 +180,36 @@ impl<'template> TinyTemplate<'template> {
         let mut tt = TinyTemplate {
             templates: HashMap::default(),
             formatters: HashMap::default(),
-            default_formatter: &format,
+            default_formatter: Box::new(format),
         };
-        tt.add_formatter("unescaped".to_string(), format_unescaped);
+        tt.add_formatter("unescaped", format_unescaped);
         tt
     }
 
     /// Parse and compile the given template, then register it under the given name.
-    pub fn add_template(&mut self, name: String, text: &'template str) -> Result<()> {
+    pub fn add_template(&mut self, name: &'template str, text: &'template str) -> Result<()> {
         let template = Template::compile(text)?;
         self.templates.insert(name, template);
         Ok(())
     }
 
+    pub fn add_unnamed_template(&mut self, text: &'template str) -> Result<()> {
+        self.add_template(text, text)
+    }
+
     /// Changes the default formatter from [`format`](fn.format.html) to `formatter`. Useful in combination with [`format_unescaped`](fn.format_unescaped.html) to deactivate HTML-escaping
-    pub fn set_default_formatter<F>(&mut self, formatter: &'template F)
-        where
-            F: 'static + Fn(&Value, &mut String) -> Result<()>,
+    pub fn set_default_formatter(&mut self, formatter: ValueFormatter)
     {
-        self.default_formatter = formatter;
+        self.default_formatter = Box::new(formatter);
     }
 
     /// Register the given formatter function under the given name.
-    pub fn add_formatter<F>(&mut self, name: String, formatter: F)
-        where
-            F: 'static + Fn(&Value, &mut String) -> Result<()>,
-    {
+    pub fn add_formatter(&mut self, name: &'template str, formatter: ValueFormatter) {
         self.formatters.insert(name, Box::new(formatter));
+    }
+
+    pub fn get_paths(&self) -> Vec<&Path<'template>> {
+        self.templates.values().map(|s| s.paths()).flatten().collect()
     }
 
     /// Render the template with the given name using the given context object. The context
@@ -220,7 +224,7 @@ impl<'template> TinyTemplate<'template> {
                 &value,
                 &self.templates,
                 &self.formatters,
-                self.default_formatter,
+                &*self.default_formatter,
             ),
             None => Err(Error::GenericError {
                 msg: format!("Unknown template '{}'", template),
@@ -249,8 +253,8 @@ mod test {
     #[test]
     pub fn test_set_default_formatter() {
         let mut tt = TinyTemplate::new();
-        tt.add_template("hello".to_string(), TEMPLATE).unwrap();
-        tt.set_default_formatter(&format_unescaped);
+        tt.add_template("hello", TEMPLATE).unwrap();
+        tt.set_default_formatter(format_unescaped);
 
         let context = Context {
             name: "<World>".to_string(),
