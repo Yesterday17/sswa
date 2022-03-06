@@ -1,3 +1,4 @@
+use std::cmp::min;
 /// The compiler module houses the code which parses and compiles templates. TinyTemplate implements
 /// a simple bytecode interpreter (see the [instruction] module for more details) to render templates.
 /// The [`TemplateCompiler`](struct.TemplateCompiler.html) struct is responsible for parsing the
@@ -62,7 +63,7 @@ impl<'template> TemplateCompiler<'template> {
                 if comment.ends_with('-') {
                     self.trim_next_whitespace();
                 }
-                // Block tag. Block tags are wrapped in {{ }} and always have one word at the start
+                // Block tag. Block tags are wrapped in {% %} and always have one word at the start
                 // to identify which kind of tag it is. Depending on the tag type there may be more.
             } else if self.remaining_text.starts_with("{%") {
                 self.trim_next = false;
@@ -136,7 +137,7 @@ impl<'template> TemplateCompiler<'template> {
                         ));
                     }
                 }
-                // Values, of the form { dotted.path.to.value.in.context }
+                // Values, of the form {{ dotted.path.to.value.in.context }}
                 // Note that it is not (currently) possible to escape curly braces in the templates to
                 // prevent them from being interpreted as values.
             } else if self.remaining_text.starts_with("{{") {
@@ -148,7 +149,7 @@ impl<'template> TemplateCompiler<'template> {
                     None => Instruction::Value(path),
                 };
                 self.instructions.push(instruction);
-                // All other text - just consume characters until we see a {
+                // All other text - just consume characters until we see a {{, {% or {#
             } else {
                 let mut escaped = false;
                 loop {
@@ -266,16 +267,17 @@ impl<'template> TemplateCompiler<'template> {
     /// a { at the start of the text.
     fn consume_text(&mut self, escaped: bool) -> &'template str {
         let search_substr = if escaped {
-            &self.remaining_text[1..]
+            &self.remaining_text[2..]
         } else {
             self.remaining_text
         };
 
-        let mut position = search_substr
-            .find('{')
-            .unwrap_or_else(|| search_substr.len());
+        let position_value = search_substr.find("{{").unwrap_or_else(|| search_substr.len());
+        let position_block = search_substr.find("{%").unwrap_or_else(|| search_substr.len());
+        let position_comment = search_substr.find("{#").unwrap_or_else(|| search_substr.len());
+        let mut position = min(position_value, min(position_block, position_comment));
         if escaped {
-            position += 1;
+            position += 2;
         }
 
         let (text, remaining) = self.remaining_text.split_at(position);
@@ -623,11 +625,11 @@ mod test {
 
     #[test]
     fn test_curly_brace_escaping() {
-        let text = "body \\{ \nfont-size: {{fontsize}} \n}";
+        let text = "body \\{{ \nfont-size: {{fontsize}} \n}";
         let instructions = compile(text).unwrap();
         assert_eq!(4, instructions.len());
         assert_eq!(&Literal("body "), &instructions[0]);
-        assert_eq!(&Literal("{ \nfont-size: "), &instructions[1]);
+        assert_eq!(&Literal("{{ \nfont-size: "), &instructions[1]);
         assert_eq!(&Value(vec![PathStep::Name("fontsize")]), &instructions[2]);
         assert_eq!(&Literal(" \n}"), &instructions[3]);
     }
@@ -688,10 +690,10 @@ mod test {
 
     #[test]
     fn test_parse_escaped_open_curly_brace() {
-        let text: &str = r"hello \{world}";
+        let text: &str = r"hello \{{world}}";
         let instructions = compile(text).unwrap();
         assert_eq!(2, instructions.len());
         assert_eq!(&Literal("hello "), &instructions[0]);
-        assert_eq!(&Literal("{world}"), &instructions[1]);
+        assert_eq!(&Literal("{{world}}"), &instructions[1]);
     }
 }
