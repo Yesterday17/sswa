@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 ssup = { path = "../ssup" }
+tinytemplate = { path = "../tinytemplate" }
 
 clap = { version = "3.0.14", features = ["derive"] }
 anni-clap-handler = { git = "https://github.com/ProjectAnni/anni", features = ["async"] }
