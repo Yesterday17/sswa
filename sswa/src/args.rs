@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use clap::Parser;
@@ -149,15 +150,37 @@ impl SsUploadCommand {
 
     /// 尝试导入视频模板
     async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
+        fn set_variable(key: &str, value: &str) {
+            if key.starts_with('$') || key.starts_with("ss_") {
+                eprintln!("跳过变量：{key}");
+            } else {
+                CONTEXT.insert(key.to_string(), value);
+            }
+        }
+
         // 最低优先级：环境变量
         // 较高优先级：变量文件
         if let Some(variables) = &self.variable_file {
-            dotenv::from_path(variables)?;
+            let file = fs::read_to_string(variables).await?;
+            if file.starts_with('{') {
+                // parse as json file
+                let json: HashMap<String, String> = serde_json::from_str(&file)?;
+                for (key, value) in json {
+                    set_variable(&key, &value);
+                }
+            } else {
+                for line in file.split('\n') {
+                    if !line.is_empty() {
+                        let (key, value) = line.split_once('=').unwrap_or((&line, ""));
+                        set_variable(key, value);
+                    }
+                }
+            }
         }
         // 最高优先级：命令行变量
         for variable in self.variables.iter() {
             let (key, value) = variable.split_once('=').unwrap_or((&variable, ""));
-            std::env::set_var(key, value);
+            set_variable(key, value);
         }
 
         let template = root.join("templates").join(format!("{}.toml", self.template));

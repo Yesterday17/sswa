@@ -21,7 +21,6 @@ anyhow = "1"
 log = "0.4.14"
 
 requestty = "0.3.0"
-dotenv = "0.15.0"
 indicatif = { version = "=0.17.0-rc.6", features = ["improved_unicode"] }
 regex = "1"
 rand = "0.8.4"
