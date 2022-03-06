@@ -178,10 +178,10 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     let template = this.template(&config_root).await?;
 
     // 预定义变量
-    CONTEXT.insert_sys("$config_root".to_string(), config_root);
-    CONTEXT.insert_sys("$file_name".to_string(), this.videos[0].file_name().unwrap());
-    CONTEXT.insert_sys("$file_stem".to_string(), this.videos[0].file_stem().unwrap());
-    CONTEXT.insert_sys("$file_pwd".to_string(), this.videos[0].canonicalize()?.parent().unwrap());
+    CONTEXT.insert_sys("$config_root".to_string(), config_root.to_string_lossy());
+    CONTEXT.insert_sys("$file_name".to_string(), this.videos[0].file_name().unwrap().to_string_lossy());
+    CONTEXT.insert_sys("$file_stem".to_string(), this.videos[0].file_stem().unwrap().to_string_lossy());
+    CONTEXT.insert_sys("$file_pwd".to_string(), this.videos[0].canonicalize()?.parent().unwrap().to_string_lossy());
 
     // 模板字符串编译
     let tmpl = template.build().with_context(|| "build template")?;

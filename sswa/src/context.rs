@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ffi::OsString;
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
 
@@ -7,7 +6,7 @@ lazy_static! {
     pub static ref CONTEXT: Context = Context::new();
 }
 
-pub struct Context(pub(crate) RwLock<HashMap<String, OsString>>);
+pub struct Context(pub(crate) RwLock<HashMap<String, String>>);
 
 impl Context {
     pub fn new() -> Self {
@@ -15,7 +14,7 @@ impl Context {
     }
 
     pub fn insert_sys<S>(&self, mut key: String, value: S)
-        where S: Into<OsString> {
+        where S: Into<String> {
         let value = value.into();
         self.insert(key.clone(), value.clone());
 
@@ -25,11 +24,11 @@ impl Context {
     }
 
     pub fn insert<S>(&self, key: String, value: S)
-        where S: Into<OsString> {
+        where S: Into<String> {
         self.0.write().insert(key, value.into());
     }
 
-    pub fn get(&self, key: &str) -> anyhow::Result<OsString> {
+    pub fn get(&self, key: &str) -> anyhow::Result<String> {
         let me = self.0.read();
         Ok(me.get(key)
             .map(|value| value.into())
