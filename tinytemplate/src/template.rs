@@ -131,8 +131,8 @@ impl<'template> Template<'template> {
     pub fn render(
         &self,
         context: &Value,
-        template_registry: &HashMap<&str, Template>,
-        formatter_registry: &HashMap<&str, Box<ValueFormatter>>,
+        template_registry: &HashMap<String, Template>,
+        formatter_registry: &HashMap<String, Box<ValueFormatter>>,
         default_formatter: &ValueFormatter,
     ) -> Result<String> {
         // The length of the original template seems like a reasonable guess at the length of the
@@ -152,8 +152,8 @@ impl<'template> Template<'template> {
     pub fn render_into(
         &self,
         context: &Value,
-        template_registry: &HashMap<&str, Template>,
-        formatter_registry: &HashMap<&str, Box<ValueFormatter>>,
+        template_registry: &HashMap<String, Template>,
+        formatter_registry: &HashMap<String, Box<ValueFormatter>>,
         default_formatter: &ValueFormatter,
         output: &mut String,
     ) -> Result<()> {
@@ -202,7 +202,7 @@ impl<'template> Template<'template> {
                 Instruction::FormattedValue(path, name) => {
                     // The @ keywords aren't supported for formatted values. Should they be?
                     let value_to_render = render_context.lookup(path)?;
-                    match formatter_registry.get(name) {
+                    match formatter_registry.get(*name) {
                         Some(formatter) => {
                             let formatter_result = formatter(value_to_render, output);
                             if let Err(err) = formatter_result {
@@ -301,7 +301,7 @@ impl<'template> Template<'template> {
                 }
                 Instruction::Call(template_name, path) => {
                     let context_value = render_context.lookup(path)?;
-                    match template_registry.get(template_name) {
+                    match template_registry.get(*template_name) {
                         Some(templ) => {
                             let called_templ_result = templ.render_into(
                                 context_value,
@@ -387,9 +387,9 @@ mod test {
         ::serde_json::to_value(&ctx).unwrap()
     }
 
-    fn other_templates() -> HashMap<&'static str, Template<'static>> {
+    fn other_templates() -> HashMap<String, Template<'static>> {
         let mut map = HashMap::new();
-        map.insert("my_macro", compile("{{value}}"));
+        map.insert("my_macro".to_string(), compile("{{value}}"));
         map
     }
 
@@ -400,9 +400,9 @@ mod test {
         Ok(())
     }
 
-    fn formatters() -> HashMap<&'static str, Box<ValueFormatter>> {
-        let mut map = HashMap::<&'static str, Box<ValueFormatter>>::new();
-        map.insert("my_formatter", Box::new(format));
+    fn formatters() -> HashMap<String, Box<ValueFormatter>> {
+        let mut map = HashMap::<String, Box<ValueFormatter>>::new();
+        map.insert("my_formatter".to_string(), Box::new(format));
         map
     }
 
@@ -793,7 +793,7 @@ mod test {
         let context = context();
         let template_registry = other_templates();
         let mut formatter_registry = formatters();
-        formatter_registry.insert("unescaped", Box::new(crate::format_unescaped));
+        formatter_registry.insert("unescaped".to_string(), Box::new(crate::format_unescaped));
         let string = template
             .render(
                 &context,

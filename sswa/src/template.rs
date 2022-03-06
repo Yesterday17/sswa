@@ -4,6 +4,7 @@ use ssup::video::{Subtitle, Video, VideoPart};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::exit;
+use tinytemplate::TinyTemplate;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -39,9 +40,37 @@ pub(crate) struct VideoTemplate {
     /// 变量默认值
     #[serde(default)]
     defaults: HashMap<String, TemplateString>,
+
+    #[serde(skip)]
+    strings: Vec<String>,
 }
 
 impl VideoTemplate {
+    /// 构建模板
+    pub(crate) fn build(&mut self) -> anyhow::Result<()> {
+        let mut template = TinyTemplate::new();
+        template.add_template("title".to_string(), &self.title.0)?;
+        template.add_template("description".to_string(), &self.description.0)?;
+        template.add_template("dynamic".to_string(), &self.dynamic_text.0)?;
+
+        if let Some(forward_source) = &self.forward_source {
+            template.add_template("forward_source".to_string(), &forward_source.0)?;
+        }
+
+        for (i, tag) in self.tags.iter().enumerate() {
+            template.add_template(format!("tag_{}", i), &tag.0)?;
+        }
+
+        for (i, video) in self.video_prefix.iter().enumerate() {
+            template.add_template(format!("video_prefix_{}", i), &video.0)?;
+        }
+
+        for (i, video) in self.video_suffix.iter().enumerate() {
+            template.add_template(format!("video_suffix_{}", i), &video.0)?;
+        }
+        Ok(())
+    }
+
     /// 校验模板字符串
     pub(crate) fn validate(&self, skip_confirm: bool) -> anyhow::Result<()> {
         let title = self.title.to_string(&self.variables, &self.defaults)?;

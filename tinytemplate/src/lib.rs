@@ -45,7 +45,7 @@
 //!
 //! pub fn main() -> Result<(), Box<dyn Error>> {
 //!     let mut tt = TinyTemplate::new();
-//!     tt.add_template("hello", TEMPLATE)?;
+//!     tt.add_template("hello".to_string(), TEMPLATE)?;
 //!
 //!     let context = Context {
 //!         name: "World".to_string(),
@@ -167,10 +167,11 @@ pub fn format_unescaped(value: &Value, output: &mut String) -> Result<()> {
 /// template and formatter registries and provides functions to render templates as well as to
 /// register templates and formatters.
 pub struct TinyTemplate<'template> {
-    templates: HashMap<&'template str, Template<'template>>,
-    formatters: HashMap<&'template str, Box<ValueFormatter>>,
+    templates: HashMap<String, Template<'template>>,
+    formatters: HashMap<String, Box<ValueFormatter>>,
     default_formatter: &'template ValueFormatter,
 }
+
 impl<'template> TinyTemplate<'template> {
     /// Create a new TinyTemplate registry. The returned registry contains no templates, and has
     /// [`format_unescaped`](fn.format_unescaped.html) registered as a formatter named "unescaped".
@@ -180,29 +181,29 @@ impl<'template> TinyTemplate<'template> {
             formatters: HashMap::default(),
             default_formatter: &format,
         };
-        tt.add_formatter("unescaped", format_unescaped);
+        tt.add_formatter("unescaped".to_string(), format_unescaped);
         tt
     }
 
     /// Parse and compile the given template, then register it under the given name.
-    pub fn add_template(&mut self, name: &'template str, text: &'template str) -> Result<()> {
+    pub fn add_template(&mut self, name: String, text: &'template str) -> Result<()> {
         let template = Template::compile(text)?;
         self.templates.insert(name, template);
         Ok(())
     }
 
-    /// Changes the default formatter from [`format`](fn.format.html) to `formatter`. Usefull in combination with [`format_unescaped`](fn.format_unescaped.html) to deactivate HTML-escaping
+    /// Changes the default formatter from [`format`](fn.format.html) to `formatter`. Useful in combination with [`format_unescaped`](fn.format_unescaped.html) to deactivate HTML-escaping
     pub fn set_default_formatter<F>(&mut self, formatter: &'template F)
-    where
-        F: 'static + Fn(&Value, &mut String) -> Result<()>,
+        where
+            F: 'static + Fn(&Value, &mut String) -> Result<()>,
     {
         self.default_formatter = formatter;
     }
 
     /// Register the given formatter function under the given name.
-    pub fn add_formatter<F>(&mut self, name: &'template str, formatter: F)
-    where
-        F: 'static + Fn(&Value, &mut String) -> Result<()>,
+    pub fn add_formatter<F>(&mut self, name: String, formatter: F)
+        where
+            F: 'static + Fn(&Value, &mut String) -> Result<()>,
     {
         self.formatters.insert(name, Box::new(formatter));
     }
@@ -210,8 +211,8 @@ impl<'template> TinyTemplate<'template> {
     /// Render the template with the given name using the given context object. The context
     /// object must implement `serde::Serialize` as it will be converted to `serde_json::Value`.
     pub fn render<C>(&self, template: &str, context: &C) -> Result<String>
-    where
-        C: Serialize,
+        where
+            C: Serialize,
     {
         let value = serde_json::to_value(context)?;
         match self.templates.get(template) {
@@ -227,6 +228,7 @@ impl<'template> TinyTemplate<'template> {
         }
     }
 }
+
 impl<'template> Default for TinyTemplate<'template> {
     fn default() -> TinyTemplate<'template> {
         TinyTemplate::new()
@@ -247,7 +249,7 @@ mod test {
     #[test]
     pub fn test_set_default_formatter() {
         let mut tt = TinyTemplate::new();
-        tt.add_template("hello", TEMPLATE).unwrap();
+        tt.add_template("hello".to_string(), TEMPLATE).unwrap();
         tt.set_default_formatter(&format_unescaped);
 
         let context = Context {
