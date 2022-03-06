@@ -1,0 +1,5 @@
+title = "Title"
+description = '''Description'''
+tid = 152
+cover = "./cover.jpg"
+dynamic-text = "{% if s7i %}私は妻の{{s7i}}を愛しています。{% endif %}"
