@@ -129,15 +129,15 @@ pub fn format(value: &Value, output: &mut String) -> Result<()> {
     match value {
         Value::Null => Ok(()),
         Value::Bool(b) => {
-            write!(output, "{}", b)?;
+            write!(output, "{b}")?;
             Ok(())
         }
         Value::Number(n) => {
-            write!(output, "{}", n)?;
+            write!(output, "{n}")?;
             Ok(())
         }
         Value::String(s) => {
-            escape(s, output);
+            write!(output, "{s}")?;
             Ok(())
         }
         _ => Err(unprintable_error()),
