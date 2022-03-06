@@ -273,7 +273,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         let metadata = tokio::fs::metadata(&video).await?;
         let total_size = metadata.len() as usize;
 
-        let upload = client.upload_video_part(&video, total_size, sx);
+        let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
         tokio::pin!(upload);
 
         let p_filename = progress.add(ProgressBar::new_spinner());

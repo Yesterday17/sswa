@@ -98,9 +98,13 @@ impl Client {
     }
 
     /// 上传单个分P
-    pub async fn upload_video_part<P>(&self, video: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
+    pub async fn upload_video_part<P>(&self, video: P, total_size: usize, sx: Sender<usize>, part_name: Option<String>) -> anyhow::Result<VideoPart>
         where P: AsRef<Path> {
-        self.line.upload(self, video, total_size, sx).await
+        let mut part = self.line.upload(self, video, total_size, sx).await?;
+        if let Some(name) = part_name {
+            part.title = Some(name);
+        }
+        Ok(part)
     }
 
     /// 投稿
