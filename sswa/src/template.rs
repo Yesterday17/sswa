@@ -48,6 +48,15 @@ impl VideoTemplate {
     /// 构建模板
     pub(crate) fn build(&self) -> anyhow::Result<TinyTemplate> {
         let mut template = TinyTemplate::new();
+        // 常用 Formatter
+        template.add_formatter("comma2cn", |input, output| {
+            if input.is_string() {
+                let result = input.as_str().unwrap().replace(",", "、");
+                output.push_str(&result);
+            }
+            Ok(())
+        });
+
         template.add_unnamed_template(&self.title.0)?;
         template.add_unnamed_template(&self.description.0)?;
         template.add_unnamed_template(&self.dynamic_text.0)?;
