@@ -6,6 +6,7 @@ use anni_clap_handler::{Context as ClapContext, Handler, handler};
 use anyhow::{bail, Context};
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::Rng;
+use serde_json::Value;
 use tokio::fs;
 use ssup::{Client, Credential, CookieInfo, UploadLine, CookieEntry};
 use ssup::constants::set_useragent;
@@ -154,7 +155,8 @@ impl SsUploadCommand {
 
     /// 尝试导入视频模板
     async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
-        fn set_variable(key: &str, value: &str) {
+        fn set_variable<I>(key: &str, value: I)
+            where I: Into<Value> {
             if key.starts_with('$') || key.starts_with("ss_") {
                 eprintln!("跳过变量：{key}");
             } else {
@@ -168,20 +170,22 @@ impl SsUploadCommand {
             let file = fs::read_to_string(variables).await?;
             if file.starts_with('{') {
                 // parse as json file
-                let json: HashMap<String, String> = serde_json::from_str(&file)?;
+                let json: HashMap<String, Value> = serde_json::from_str(&file)?;
                 for (key, value) in json {
-                    set_variable(&key, &value);
+                    set_variable(&key, value);
                 }
             } else {
-                for line in file.split('\n') {
-                    if !line.is_empty() {
+                for mut line in file.split('\n') {
+                    line = line.trim();
+                    if !line.is_empty() && !line.starts_with('#') {
                         let (key, mut value) = line.split_once('=').unwrap_or((&line, ""));
                         if self.skip_quotes &&
                             ((value.starts_with('"') && value.ends_with('"')) ||
                                 (value.starts_with('\'') && value.ends_with('\''))) {
                             value = &value[1..value.len() - 1];
                         }
-                        set_variable(key, value);
+                        let value = value.replace("\\n", "\n");
+                        set_variable(key.trim(), value);
                     }
                 }
             }
@@ -189,7 +193,7 @@ impl SsUploadCommand {
         // 最高优先级：命令行变量
         for variable in self.variables.iter() {
             let (key, value) = variable.split_once('=').unwrap_or((&variable, ""));
-            set_variable(key, value);
+            set_variable(key.trim(), value.trim());
         }
 
         let template = root.join("templates").join(format!("{}.toml", self.template));

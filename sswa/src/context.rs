@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::format;
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
 use serde_json::Value;
