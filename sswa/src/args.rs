@@ -119,6 +119,10 @@ pub(crate) struct SsUploadCommand {
     #[clap(long)]
     scale_cover: Option<bool>,
 
+    /// 是否忽略简单变量文件中值前后的引号（包括单引号和双引号）
+    #[clap(long = "no-quote", parse(from_flag = std::ops::Not::not))]
+    skip_quotes: bool,
+
     /// 待投稿的视频
     videos: Vec<PathBuf>,
 }
@@ -171,7 +175,12 @@ impl SsUploadCommand {
             } else {
                 for line in file.split('\n') {
                     if !line.is_empty() {
-                        let (key, value) = line.split_once('=').unwrap_or((&line, ""));
+                        let (key, mut value) = line.split_once('=').unwrap_or((&line, ""));
+                        if self.skip_quotes &&
+                            ((value.starts_with('"') && value.ends_with('"')) ||
+                                (value.starts_with('\'') && value.ends_with('\''))) {
+                            value = &value[1..value.len() - 1];
+                        }
                         set_variable(key, value);
                     }
                 }
