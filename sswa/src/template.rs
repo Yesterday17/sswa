@@ -139,11 +139,12 @@ impl VideoTemplate {
             video.to_string(&template)?;
         }
 
+        // 输出投稿信息
+        eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}",
+                  dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
+                  tags = tags.join(","),
+        );
         if !skip_confirm {
-            eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}",
-                      dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
-                      tags = tags.join(","),
-            );
             let question = requestty::Question::confirm("anonymous")
                 .message("投稿信息如上，是否正确？")
                 .build();
