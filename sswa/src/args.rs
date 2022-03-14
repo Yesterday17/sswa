@@ -178,14 +178,16 @@ impl SsUploadCommand {
                 for mut line in file.split('\n') {
                     line = line.trim();
                     if !line.is_empty() && !line.starts_with('#') {
-                        let (key, mut value) = line.split_once('=').unwrap_or((&line, ""));
+                        let (key, value) = line.split_once('=').unwrap_or((&line, ""));
+                        let key = key.trim();
+                        let mut value = value.trim_matches(' ');
                         if self.skip_quotes &&
                             ((value.starts_with('"') && value.ends_with('"')) ||
                                 (value.starts_with('\'') && value.ends_with('\''))) {
                             value = &value[1..value.len() - 1];
                         }
                         let value = value.replace("\\n", "\n");
-                        set_variable(key.trim(), value);
+                        set_variable(key, value);
                     }
                 }
             }
