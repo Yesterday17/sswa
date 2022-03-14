@@ -124,6 +124,12 @@ pub(crate) struct SsUploadCommand {
     #[clap(long = "no-quote", parse(from_flag = std::ops::Not::not))]
     skip_quotes: bool,
 
+    /// 是否模拟投稿
+    ///
+    /// 模拟投稿时，不会实际向叔叔服务器上传视频和封面
+    #[clap(short, long)]
+    dry_run: bool,
+
     /// 待投稿的视频
     videos: Vec<PathBuf>,
 }
@@ -265,7 +271,11 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
         let p_cover = progress.add(ProgressBar::new_spinner());
         p_cover.set_message("上传封面…");
-        let cover = client.upload_cover(cover_path).await.with_context(|| "upload cover")?;
+        let cover = if !this.dry_run {
+            client.upload_cover(cover_path).await.with_context(|| "upload cover")?
+        } else {
+            "".into()
+        };
         p_cover.finish_with_message("封面上传成功！");
         cover
     };
@@ -297,18 +307,23 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         let format = format!("{{spinner:.green}} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
         pb.set_style(ProgressStyle::default_bar().template(&format)?);
 
-        loop {
-            tokio::select! {
-                Some(size) = rx.recv() => {
-                    // 上传进度
-                    pb.inc(size as u64);
-                }
-                video = &mut upload => {
-                    // 上传完成
-                    parts.push(video?);
-                    p_filename.finish();
-                    pb.finish();
-                    break;
+        if this.dry_run {
+            pb.inc(total_size as u64);
+            pb.finish();
+        } else {
+            loop {
+                tokio::select! {
+                    Some(size) = rx.recv() => {
+                        // 上传进度
+                        pb.inc(size as u64);
+                    }
+                    video = &mut upload => {
+                        // 上传完成
+                        parts.push(video?);
+                        p_filename.finish();
+                        pb.finish();
+                        break;
+                    }
                 }
             }
         }
@@ -316,7 +331,9 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 提交视频
     let video = template.to_video(&tmpl, parts, cover)?;
-    client.submit(video).await?;
+    if !this.dry_run {
+        client.submit(video).await?;
+    }
     eprintln!("投稿成功！");
     Ok(())
 }
