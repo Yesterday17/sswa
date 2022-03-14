@@ -254,13 +254,13 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
             let rnd = rand::thread_rng().gen_range(0..duration);
             Some(ffmpeg::auto_cover(&this.videos[0], rnd)?)
         } else if this.scale_cover.unwrap_or(config.need_scale_cover()) {
-            Some(ffmpeg::scale_cover(&template.cover).with_context(|| "ffmpeg::scale_cover")?)
+            Some(ffmpeg::scale_cover(&template.cover(&tmpl)?).with_context(|| "ffmpeg::scale_cover")?)
         } else {
             None
         };
         let cover_path = match &cover {
             Some(cover) => cover.to_path_buf(),
-            None => template.cover.to_string().into(),
+            None => template.cover(&tmpl)?.into(),
         };
 
         let p_cover = progress.add(ProgressBar::new_spinner());

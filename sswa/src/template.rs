@@ -20,7 +20,7 @@ pub(crate) struct VideoTemplate {
     /// 分区号
     tid: u16,
     /// 封面图片
-    pub cover: String,
+    cover: TemplateString,
     /// 动态文本
     dynamic_text: TemplateString,
     /// 标签
@@ -45,6 +45,11 @@ pub(crate) struct VideoTemplate {
 }
 
 impl VideoTemplate {
+    /// 获取封面路径
+    pub(crate) fn cover(&self, template: &TinyTemplate) -> anyhow::Result<String> {
+        self.cover.to_string(template)
+    }
+
     /// 构建模板
     pub(crate) fn build(&self) -> anyhow::Result<TinyTemplate> {
         let mut template = TinyTemplate::new();
@@ -60,6 +65,7 @@ impl VideoTemplate {
         template.add_unnamed_template(&self.title.0)?;
         template.add_unnamed_template(&self.description.0)?;
         template.add_unnamed_template(&self.dynamic_text.0)?;
+        template.add_unnamed_template(&self.cover.0)?;
 
         if let Some(forward_source) = &self.forward_source {
             template.add_unnamed_template(&forward_source.0)?;
@@ -221,7 +227,7 @@ impl VideoTemplate {
     }
 
     pub(crate) fn auto_cover(&self) -> bool {
-        self.cover.is_empty() || self.cover == "auto"
+        self.cover.is_empty() || self.cover.0 == "auto"
     }
 
     pub(crate) fn video_prefix(&self, template: &TinyTemplate) -> Vec<PathBuf> {
