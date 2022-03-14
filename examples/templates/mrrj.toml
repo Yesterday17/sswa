@@ -18,7 +18,7 @@ cover = "./cover.png"
 # 动态文本
 dynamic-text = ""
 # 标签
-tags = ["田所梓", "山崎遥", "麻仓桃", "偶像大师百万广播", "{guests}"]
+tags = ["田所梓", "山崎遥", "麻仓桃", "偶像大师百万广播", "{{guests}}"]
 # 定时投稿
 display-time = "tomorrow 10:00"
 # 字幕（TODO）
@@ -33,14 +33,21 @@ video-suffix = []
 
 # 变量对应的解释文本，在需要用户手动输入时作为提示文本展示
 [variables]
-num = "广播回数"
-title = "标题"
 translators = "翻译"
 jiaodui = "校对"
 subtitle = "时间轴"
 guests = "嘉宾 Tag"
 
-# 变量的默认值，在需要用户手动输入时作为默认文本
-[defaults]
-num = "123"
-title = "默认标题"
+[variables.num]
+description = "广播回数"
+# 变量的默认值
+default = "123"
+
+[variables.title]
+description = "标题"
+default = "默认标题"
+
+[variables.canSkip]
+description = "是否可以跳过"
+# 当未提供时 变量是否必须填写
+can-skip = true

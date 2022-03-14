@@ -170,8 +170,20 @@ impl SsUploadCommand {
             }
         }
 
-        // 最低优先级：环境变量
-        // 较高优先级：变量文件
+        let template = root.join("templates").join(format!("{}.toml", self.template));
+        if !template.exists() {
+            bail!("Template not found!");
+        }
+
+        let template = fs::read_to_string(template).await?;
+        let template: VideoTemplate = toml::from_str(&template)?;
+        for (variable, detail) in template.variables.iter() {
+            if !detail.can_skip && detail.default.is_none() {
+                set_variable(variable, String::new());
+            }
+        }
+
+        // 低优先级：变量文件
         if let Some(variables) = &self.variable_file {
             let file = fs::read_to_string(variables).await?;
             if file.starts_with('{') {
@@ -198,19 +210,13 @@ impl SsUploadCommand {
                 }
             }
         }
-        // 最高优先级：命令行变量
+        // 高优先级：命令行变量
         for variable in self.variables.iter() {
             let (key, value) = variable.split_once('=').unwrap_or((&variable, ""));
             set_variable(key.trim(), value.trim());
         }
 
-        let template = root.join("templates").join(format!("{}.toml", self.template));
-        if !template.exists() {
-            bail!("Template not found!");
-        }
-
-        let template = fs::read_to_string(template).await?;
-        Ok(toml::from_str(&template)?)
+        Ok(template)
     }
 }
 

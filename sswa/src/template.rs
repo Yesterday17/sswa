@@ -38,10 +38,7 @@ pub(crate) struct VideoTemplate {
     pub default_user: Option<String>,
     /// 变量解释
     #[serde(default)]
-    variables: HashMap<String, String>,
-    /// 变量默认值
-    #[serde(default)]
-    defaults: HashMap<String, TemplateString>,
+    pub variables: TemplateVariables,
 }
 
 impl VideoTemplate {
@@ -83,6 +80,8 @@ impl VideoTemplate {
             template.add_unnamed_template(&video.0)?;
         }
 
+        self.variables.add_templates(&mut template)?;
+
         // 检查变量
         let paths = template.get_paths();
         for path in paths {
@@ -90,8 +89,8 @@ impl VideoTemplate {
                 // 暂时只检查一层变量
                 match path[0] {
                     PathStep::Name(variable) => {
-                        if !CONTEXT.contains_key(variable) {
-                            let description = match self.variables.get(variable) {
+                        if !CONTEXT.contains_key(variable) && self.variables.is_required(variable) {
+                            let description = match self.variables.description(variable) {
                                 Some(description) => format!("{description}({variable})"),
                                 None => format!("{variable}"),
                             };
@@ -99,7 +98,7 @@ impl VideoTemplate {
                             // 用户输入变量
                             let mut question = requestty::Question::input(variable)
                                 .message(description);
-                            if let Some(default) = self.defaults.get(variable) {
+                            if let Some(default) = self.variables.default(variable) {
                                 question = question.default(default.to_string(&template)?);
                             }
                             let question = question.build();
@@ -264,7 +263,7 @@ impl VideoTemplate {
 }
 
 #[derive(Deserialize)]
-struct TemplateString(String);
+pub struct TemplateString(String);
 
 impl TemplateString {
     fn to_string(&self, template: &TinyTemplate) -> anyhow::Result<String> {
@@ -274,4 +273,85 @@ impl TemplateString {
     fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+}
+
+#[derive(Deserialize, Default)]
+pub struct TemplateVariables(HashMap<String, TemplateVariable>);
+
+impl TemplateVariables {
+    fn add_templates(&self, template: &mut TinyTemplate) -> anyhow::Result<()> {
+        for variable in self.0.values() {
+            match variable {
+                TemplateVariable::Simple(_) => {}
+                TemplateVariable::Detailed(detailed) => {
+                    if let Some(default) = &detailed.default {
+                        // leak template string here for convenience
+                        template.add_unnamed_template(Box::leak(default.0.clone().into_boxed_str()))?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=(&str, &DetailedVariable)> {
+        self.0.iter().filter_map(|(name, v)| match v {
+            TemplateVariable::Simple(_) => None,
+            TemplateVariable::Detailed(detailed) => Some((name.as_str(), detailed)),
+        })
+    }
+
+    fn description(&self, key: &str) -> Option<&str> {
+        self.0.get(key).and_then(|v| v.description())
+    }
+
+    fn default(&self, key: &str) -> Option<&TemplateString> {
+        self.0.get(key).and_then(|v| v.default())
+    }
+
+    fn is_required(&self, key: &str) -> bool {
+        self.0.get(key).map_or(false, |v| v.is_required())
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum TemplateVariable {
+    /// 简单变量，仅包括变量简介
+    /// 该变量是必选的
+    Simple(String),
+    /// 复杂变量，可以设置各种属性
+    Detailed(DetailedVariable),
+}
+
+impl TemplateVariable {
+    fn description(&self) -> Option<&str> {
+        match &self {
+            TemplateVariable::Simple(description) => Some(description.as_str()),
+            TemplateVariable::Detailed(detailed) => detailed.description.as_deref(),
+        }
+    }
+
+    pub fn default(&self) -> Option<&TemplateString> {
+        match &self {
+            TemplateVariable::Simple(_) => None,
+            TemplateVariable::Detailed(detailed) => detailed.default.as_ref(),
+        }
+    }
+
+    pub fn is_required(&self) -> bool {
+        match &self {
+            TemplateVariable::Simple(_) => true,
+            TemplateVariable::Detailed(detailed) => !detailed.can_skip,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct DetailedVariable {
+    description: Option<String>,
+    pub default: Option<TemplateString>,
+    #[serde(default)]
+    pub can_skip: bool,
 }
