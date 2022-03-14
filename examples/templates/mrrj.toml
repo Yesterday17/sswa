@@ -14,7 +14,12 @@ forward-source = "765.million"
 tid = 152
 # 封面图片路径
 # 当留空或值为 auto 时，自动从第一个视频（不包含前缀视频）中随机提取
-cover = "./cover.png"
+cover = '''./
+{%-if cover -%}
+  {{cover}}
+{%- else -%}
+  folder
+{%- endif %}/cover.png'''
 # 动态文本
 dynamic-text = ""
 # 标签
@@ -47,7 +52,7 @@ default = "123"
 description = "标题"
 default = "默认标题"
 
-[variables.canSkip]
-description = "是否可以跳过"
+[variables.cover]
+description = "封面图片目录"
 # 当未提供时 变量是否必须填写
 can-skip = true

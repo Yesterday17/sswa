@@ -178,7 +178,7 @@ impl SsUploadCommand {
         let template = fs::read_to_string(template).await?;
         let template: VideoTemplate = toml::from_str(&template)?;
         for (variable, detail) in template.variables.iter() {
-            if !detail.can_skip && detail.default.is_none() {
+            if detail.can_skip && detail.default.is_none() {
                 set_variable(variable, String::new());
             }
         }

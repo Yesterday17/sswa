@@ -89,21 +89,31 @@ impl VideoTemplate {
                 // 暂时只检查一层变量
                 match path[0] {
                     PathStep::Name(variable) => {
-                        if !CONTEXT.contains_key(variable) && self.variables.is_required(variable) {
-                            let description = match self.variables.description(variable) {
-                                Some(description) => format!("{description}({variable})"),
-                                None => format!("{variable}"),
+                        if !CONTEXT.contains_key(variable) {
+                            let default = if let Some(default) = self.variables.default(variable) {
+                                default.to_string(&template)?
+                            } else {
+                                String::new()
                             };
 
-                            // 用户输入变量
-                            let mut question = requestty::Question::input(variable)
-                                .message(description);
-                            if let Some(default) = self.variables.default(variable) {
-                                question = question.default(default.to_string(&template)?);
-                            }
-                            let question = question.build();
-                            let ans = requestty::prompt_one(question)?;
-                            let ans = ans.as_string().unwrap();
+                            let ans = if self.variables.is_required(variable) {
+                                // 用户输入变量
+                                let description = match self.variables.description(variable) {
+                                    Some(description) => format!("{description}({variable})"),
+                                    None => format!("{variable}"),
+                                };
+
+                                let question = requestty::Question::input(variable)
+                                    .default(default)
+                                    .message(description);
+
+                                let question = question.build();
+                                let ans = requestty::prompt_one(question)?;
+                                ans.as_string().unwrap().to_string()
+                            } else {
+                                default
+                            };
+
 
                             CONTEXT.insert(variable.to_string(), ans);
                         }
@@ -120,6 +130,7 @@ impl VideoTemplate {
         let title = self.title.to_string(&template)?;
         let desc = self.description.to_string(&template)?;
         let dynamic = self.dynamic_text.to_string(&template)?;
+        let cover = self.cover.to_string(&template)?;
 
         let forward_source = if let Some(forward_source) = &self.forward_source {
             forward_source.to_string(&template)?
@@ -145,7 +156,7 @@ impl VideoTemplate {
         }
 
         // 输出投稿信息
-        eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}",
+        eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}\n封面文件路径：{cover}",
                   dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
                   tags = tags.join(","),
         );
@@ -310,7 +321,7 @@ impl TemplateVariables {
     }
 
     fn is_required(&self, key: &str) -> bool {
-        self.0.get(key).map_or(false, |v| v.is_required())
+        self.0.get(key).map_or(true, |v| v.is_required())
     }
 }
 
