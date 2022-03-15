@@ -127,38 +127,31 @@ impl VideoTemplate {
 
     /// 校验模板字符串
     pub(crate) fn validate(&self, template: &TinyTemplate, skip_confirm: bool) -> anyhow::Result<()> {
-        let title = self.title.to_string(&template)?;
-        let desc = self.description.to_string(&template)?;
-        let dynamic = self.dynamic_text.to_string(&template)?;
-        let cover = self.cover.to_string(&template)?;
+        let title = self.title.to_string(template)?;
+        let desc = self.description.to_string(template)?;
+        let dynamic = self.dynamic_text.to_string(template)?;
+        let cover = self.cover.to_string(template)?;
 
         let forward_source = if let Some(forward_source) = &self.forward_source {
-            forward_source.to_string(&template)?
+            forward_source.to_string(template)?
         } else {
             String::new()
         };
 
-        let mut tags = Vec::new();
-        for tag in self.tags.iter() {
-            let result = tag.to_string(&template)?;
-            if !result.is_empty() {
-                tags.push(result);
-            }
-        }
+        let tags = self.tags(template)?;
 
         self.display_timestamp()?;
 
         for video in self.video_prefix.iter() {
-            video.to_string(&template)?;
+            video.to_string(template)?;
         }
         for video in self.video_suffix.iter() {
-            video.to_string(&template)?;
+            video.to_string(template)?;
         }
 
         // 输出投稿信息
         eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}\n封面文件路径：{cover}",
                   dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
-                  tags = tags.join(","),
         );
         if !skip_confirm {
             let question = requestty::Question::confirm("anonymous")
@@ -198,6 +191,23 @@ impl VideoTemplate {
         })
     }
 
+    fn tags(&self, template: &TinyTemplate) -> anyhow::Result<String> {
+        let mut tags = Vec::new();
+        for tag in self.tags.iter() {
+            let result = tag.to_string(template)?;
+            let result = result.trim();
+            let results = result.split(',').filter_map(|s| {
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s.to_string())
+                }
+            }).collect::<Vec<String>>();
+            tags.extend(results);
+        }
+        Ok(tags.join(","))
+    }
+
     pub(crate) fn to_video(
         &self,
         template: &TinyTemplate<'_>,
@@ -209,27 +219,18 @@ impl VideoTemplate {
                 Some(source) if !source.is_empty() => 2,
                 _ => 1,
             },
-            source: self.forward_source(&template),
+            source: self.forward_source(template),
             tid: self.tid,
             cover,
-            title: self.title.to_string(&template)?,
+            title: self.title.to_string(template)?,
             desc_format_id: 0,
-            desc: self.description.to_string(&template)?,
-            dynamic: self.dynamic_text.to_string(&template)?,
+            desc: self.description.to_string(template)?,
+            dynamic: self.dynamic_text.to_string(template)?,
             subtitle: Subtitle {
                 open: 0,
                 lan: "".to_string(),
             },
-            tag: self
-                .tags
-                .iter()
-                .map(|s| s.to_string(&template))
-                .filter_map(|s| match s {
-                    Ok(s) if !s.is_empty() => Some(s),
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-                .join(","),
+            tag: self.tags(template)?,
             videos: parts,
             display_time: self.display_timestamp()?,
             open_subtitle: false,
