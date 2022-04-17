@@ -169,4 +169,24 @@ impl Client {
             bail!("{}", ret)
         }
     }
+
+    /// 修改现有投稿
+    pub async fn submit_edit(&self, form: EditVideo) -> anyhow::Result<()> {
+        let ret: serde_json::Value = self.client
+            .post(format!(
+                "https://member.bilibili.com/x/vu/client/edit?access_key={}",
+                self.credential.token_info.access_token
+            ))
+            .json(&form)
+            .send()
+            .await?
+            .json()
+            .await?;
+        if ret["code"] == 0 {
+            // Ok(ret)
+            Ok(())
+        } else {
+            bail!("{}", ret)
+        }
+    }
 }

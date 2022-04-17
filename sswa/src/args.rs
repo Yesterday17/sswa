@@ -164,7 +164,7 @@ async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<
     Ok(credential)
 }
 
-async fn upload_video(client: &Client, progress: &MultiProgress, video_files: &[PathBuf], dry_run: bool) -> anyhow::Result<Vec<VideoPart>> {
+async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &[PathBuf], dry_run: bool) -> anyhow::Result<Vec<VideoPart>> {
     let mut parts = Vec::with_capacity(video_files.len());
 
     for video in video_files {
@@ -338,7 +338,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     }
 
     // 上传分P
-    let parts = upload_video(&client, &progress, &video_files, this.dry_run).await?;
+    let parts = upload_videos(&client, &progress, &video_files, this.dry_run).await?;
 
     // 提交视频
     let video = template.to_video(&tmpl, parts, cover)?;
@@ -370,14 +370,26 @@ async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &C
     let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
     let line = config.line().await?;
     let client = Client::new(line, credential);
-    let current_video = client.get_video(&this.video_id).await?;
+    let mut current_video = client.get_video(&this.video_id).await?;
 
-    // 检查文件存在
+    // 2. 检查文件存在
     for video in this.videos.iter() {
         if !video.exists() {
             bail!("Video not found: {}", video.display());
         }
     }
+
+    // 3. 准备进度条
+    let progress = indicatif::MultiProgress::new();
+
+    // 4. 上传分P
+    let mut parts = upload_videos(&client, &progress, &this.videos, false).await?.into_iter().map(|p| p.into()).collect();
+    current_video.videos.append(&mut parts);
+
+    // 5. 提交视频
+    client.submit_edit(current_video).await?;
+
+    eprintln!("投稿成功！");
 
     Ok(())
 }

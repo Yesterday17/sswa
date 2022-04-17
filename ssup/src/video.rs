@@ -101,3 +101,14 @@ pub struct EditVideoPart {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<u64>,
 }
+
+impl From<VideoPart> for EditVideoPart {
+    fn from(v: VideoPart) -> Self {
+        EditVideoPart {
+            title: v.title,
+            filename: v.filename,
+            desc: v.desc,
+            cid: None,
+        }
+    }
+}
