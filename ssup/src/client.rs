@@ -128,7 +128,7 @@ impl Client {
         let ret = &ret["data"];
         let data = &ret["archive"];
         let video = EditVideo {
-            aid: data["aid"].as_str().unwrap().into(),
+            aid: data["aid"].as_u64().unwrap(),
             copyright: data["copyright"].as_u64().unwrap() as u8,
             source: data["source"].as_str().unwrap().into(),
             tid: data["tid"].as_u64().unwrap() as u16,

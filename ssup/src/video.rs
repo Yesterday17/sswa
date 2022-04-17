@@ -73,7 +73,7 @@ impl FromStr for VideoId {
 #[derive(Serialize, Debug)]
 pub struct EditVideo {
     /// 视频 ID
-    pub aid: String,
+    pub aid: u64,
 
     /// 1 为自制，2 为转载
     pub copyright: u8,
