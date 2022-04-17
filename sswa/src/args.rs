@@ -8,7 +8,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use rand::Rng;
 use serde_json::Value;
 use tokio::fs;
-use ssup::{Client, Credential, CookieInfo, UploadLine, CookieEntry};
+use ssup::{Client, Credential, CookieInfo, UploadLine, CookieEntry, VideoId};
 use ssup::constants::set_useragent;
 use crate::config::Config;
 use crate::context::CONTEXT;
@@ -77,6 +77,8 @@ pub(crate) enum SsCommand {
     Config(SsConfigCommand),
     /// 上传视频
     Upload(SsUploadCommand),
+    /// 查看商品
+    View(SsViewCommand),
     /// 帐号登录
     Login(SsAccountLoginCommand),
     /// 帐号登出
@@ -134,31 +136,31 @@ pub(crate) struct SsUploadCommand {
     videos: Vec<PathBuf>,
 }
 
-impl SsUploadCommand {
-    /// 尝试导入用户凭据，失败时则以该名称创建新的凭据
-    async fn credential(&self, root: &PathBuf, default_user: Option<&str>) -> anyhow::Result<Credential> {
-        let account = root.join("accounts")
-            .join(format!("{}.json", self.account.as_deref().or(default_user).expect("account not specified")));
-        if account.exists() {
-            // 凭据存在，读取并返回
-            let account = fs::read_to_string(&account).await?;
-            let account: Credential = serde_json::from_str(&account)?;
-            if let Ok(nickname) = account.get_nickname().await {
-                eprintln!("投稿用户：{nickname}");
-                return Ok(account);
-            } else {
-                eprintln!("登录已失效！请重新登录。");
-            }
+/// 尝试导入用户凭据，失败时则以该名称创建新的凭据
+async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<&str>) -> anyhow::Result<Credential> {
+    let account = root.join("accounts")
+        .join(format!("{}.json", account.or(default_user).expect("account not specified")));
+    if account.exists() {
+        // 凭据存在，读取并返回
+        let account = fs::read_to_string(&account).await?;
+        let account: Credential = serde_json::from_str(&account)?;
+        if let Ok(nickname) = account.get_nickname().await {
+            eprintln!("投稿用户：{nickname}");
+            return Ok(account);
+        } else {
+            eprintln!("登录已失效！请重新登录。");
         }
-
-        // 凭据不存在，新登录
-        let qrcode = Credential::get_qrcode().await?;
-        eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
-        let credential = Credential::from_qrcode(qrcode).await?;
-        fs::write(account, serde_json::to_string(&credential)?).await?;
-        Ok(credential)
     }
 
+    // 凭据不存在，新登录
+    let qrcode = Credential::get_qrcode().await?;
+    eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
+    let credential = Credential::from_qrcode(qrcode).await?;
+    fs::write(account, serde_json::to_string(&credential)?).await?;
+    Ok(credential)
+}
+
+impl SsUploadCommand {
     /// 尝试导入视频模板
     async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
         fn set_variable<I>(key: &str, value: I)
@@ -240,7 +242,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     template.validate(&tmpl, this.skip_confirm).with_context(|| "validate template")?;
 
     // 用户登录检查
-    let credential = this.credential(config_root, template.default_user.as_deref().or(config.default_user.as_deref())).await?;
+    let credential = credential(config_root, this.account.as_deref(), template.default_user.as_deref().or(config.default_user.as_deref())).await?;
 
     // 线路选择
     let client = {
@@ -343,6 +345,26 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     eprintln!("投稿成功！");
     Ok(())
 }
+
+#[derive(Parser, Clone)]
+pub(crate) struct SsViewCommand {
+    /// 使用的帐号
+    #[clap(short = 'u', long = "user")]
+    account: Option<String>,
+
+    /// 查看的视频 ID
+    video_id: VideoId,
+}
+
+#[handler(SsViewCommand)]
+async fn handle_view(this: &SsViewCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+    let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
+    let client = Client::auto(credential).await?;
+    let video = client.get_video(&this.video_id).await?;
+    println!("{:#?}", video);
+    Ok(())
+}
+
 
 #[derive(Parser, Clone)]
 pub(crate) struct SsAccountListCommand;

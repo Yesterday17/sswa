@@ -3,7 +3,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 /// 视频
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Video {
     /// 1 为自制，2 为转载
     pub copyright: u8,
@@ -30,14 +30,14 @@ pub struct Video {
     pub open_subtitle: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Subtitle {
     pub open: i8,
     pub lan: String,
 }
 
 /// 分P
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct VideoPart {
     pub title: Option<String>,
     pub filename: String,
@@ -45,7 +45,7 @@ pub struct VideoPart {
 }
 
 /// 视频 ID
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum VideoId {
     AId(u64),
     BVId(String),
@@ -68,4 +68,36 @@ impl FromStr for VideoId {
             Ok(VideoId::AId(s.parse().map_err(|e: ParseIntError| e.to_string())?))
         }
     }
+}
+
+#[derive(Serialize, Debug)]
+pub struct EditVideo {
+    /// 1 为自制，2 为转载
+    pub copyright: u8,
+    pub source: String,
+    /// 分区号
+    pub tid: u16,
+    /// 封面链接
+    pub cover: String,
+    pub title: String,
+    /// 为 0
+    pub desc_format_id: u8,
+    /// 描述
+    pub desc: String,
+    /// 动态文本
+    pub dynamic: String,
+    /// 由 `,` 连接的 Tag
+    pub tag: String,
+    /// 分P
+    pub videos: Vec<EditVideoPart>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EditVideoPart {
+    pub title: Option<String>,
+    pub filename: String,
+    pub desc: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cid: Option<u64>,
 }

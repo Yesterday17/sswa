@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Sender;
 use crate::constants::USER_AGENT;
 use crate::credential::{Credential, ResponseData, ResponseValue};
 use crate::line::UploadLine;
-use crate::video::{VideoPart, Video};
+use crate::video::{VideoPart, Video, EditVideo, EditVideoPart, VideoId};
 
 /// 上传使用的客户端
 pub struct Client {
@@ -106,6 +106,49 @@ impl Client {
         }
         Ok(part)
     }
+
+    /// 查看现有投稿信息
+    pub async fn get_video(&self, id: &VideoId) -> anyhow::Result<EditVideo> {
+        let id = match id {
+            VideoId::AId(aid) => format!("aid={aid}"),
+            VideoId::BVId(bvid) => format!("bvid={bvid}"),
+        };
+
+        let ret: serde_json::Value = self.client
+            .get(format!("https://member.bilibili.com/x/client/archive/view?{id}"))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        if ret["code"] != 0 {
+            bail!("{:?}", ret);
+        }
+
+        let ret = &ret["data"];
+        let data = &ret["archive"];
+        let video = EditVideo {
+            copyright: data["copyright"].as_u64().unwrap() as u8,
+            source: data["source"].as_str().unwrap().into(),
+            tid: data["tid"].as_u64().unwrap() as u16,
+            cover: data["cover"].as_str().unwrap().into(),
+            title: data["title"].as_str().unwrap().into(),
+            desc_format_id: data["desc_format_id"].as_u64().unwrap() as u8,
+            desc: data["desc"].as_str().unwrap().into(),
+            dynamic: data["dynamic"].as_str().unwrap().into(),
+            tag: data["tag"].as_str().unwrap().into(),
+            videos: ret["videos"].as_array().unwrap().iter().map(|video| {
+                EditVideoPart {
+                    title: Some(video["title"].as_str().unwrap().into()),
+                    filename: video["filename"].as_str().unwrap().into(),
+                    desc: video["desc"].as_str().unwrap().into(),
+                    cid: Some(video["cid"].as_u64().unwrap()),
+                }
+            }).collect(),
+        };
+        Ok(video)
+    }
+
 
     /// 投稿
     pub async fn submit(&self, form: Video) -> anyhow::Result<()> {
