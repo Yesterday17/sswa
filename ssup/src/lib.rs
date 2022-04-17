@@ -8,3 +8,4 @@ mod credential;
 pub use client::Client;
 pub use line::UploadLine;
 pub use credential::{Credential, CookieInfo, CookieEntry};
+pub use video::VideoId;
