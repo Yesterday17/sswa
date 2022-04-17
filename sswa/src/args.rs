@@ -4,12 +4,13 @@ use std::str::FromStr;
 use clap::Parser;
 use anni_clap_handler::{Context as ClapContext, Handler, handler};
 use anyhow::{bail, Context};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::Rng;
 use serde_json::Value;
 use tokio::fs;
-use ssup::{Client, Credential, CookieInfo, UploadLine, CookieEntry, VideoId};
+use ssup::{Client, Credential, CookieInfo, CookieEntry, VideoId};
 use ssup::constants::set_useragent;
+use ssup::video::VideoPart;
 use crate::config::Config;
 use crate::context::CONTEXT;
 use crate::ffmpeg;
@@ -77,7 +78,9 @@ pub(crate) enum SsCommand {
     Config(SsConfigCommand),
     /// 上传视频
     Upload(SsUploadCommand),
-    /// 查看商品
+    /// 增加分P
+    Append(SsAppendCommand),
+    /// 查看已投稿视频
     View(SsViewCommand),
     /// 帐号登录
     Login(SsAccountLoginCommand),
@@ -133,6 +136,7 @@ pub(crate) struct SsUploadCommand {
     dry_run: bool,
 
     /// 待投稿的视频
+    #[clap(required = true)]
     videos: Vec<PathBuf>,
 }
 
@@ -158,6 +162,48 @@ async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<
     let credential = Credential::from_qrcode(qrcode).await?;
     fs::write(account, serde_json::to_string(&credential)?).await?;
     Ok(credential)
+}
+
+async fn upload_video(client: &Client, progress: &MultiProgress, video_files: &[PathBuf], dry_run: bool) -> anyhow::Result<Vec<VideoPart>> {
+    let mut parts = Vec::with_capacity(video_files.len());
+
+    for video in video_files {
+        let (sx, mut rx) = tokio::sync::mpsc::channel(1);
+        let metadata = tokio::fs::metadata(&video).await?;
+        let total_size = metadata.len() as usize;
+
+        let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
+        tokio::pin!(upload);
+
+        let p_filename = progress.add(ProgressBar::new_spinner());
+        p_filename.set_message(format!("{}", video.file_name().unwrap().to_string_lossy()));
+        let pb = progress.add(ProgressBar::new(total_size as u64));
+        let format = format!("{{spinner:.green}} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
+        pb.set_style(ProgressStyle::default_bar().template(&format)?);
+
+        if dry_run {
+            pb.inc(total_size as u64);
+            pb.finish();
+        } else {
+            loop {
+                tokio::select! {
+                    Some(size) = rx.recv() => {
+                        // 上传进度
+                        pb.inc(size as u64);
+                    }
+                    video = &mut upload => {
+                        // 上传完成
+                        parts.push(video?);
+                        p_filename.finish();
+                        pb.finish();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(parts)
 }
 
 impl SsUploadCommand {
@@ -248,15 +294,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     let client = {
         let p_line = progress.add(ProgressBar::new_spinner());
         p_line.set_message("选择线路…");
-        let line = config.line.as_deref().unwrap_or("auto");
-        let line = match line {
-            "kodo" => UploadLine::kodo(),
-            "bda2" => UploadLine::bda2(),
-            "ws" => UploadLine::ws(),
-            "qn" => UploadLine::qn(),
-            "auto" => UploadLine::auto().await.with_context(|| "auto select upload line")?,
-            _ => unimplemented!(),
-        };
+        let line = config.line().await?;
         p_line.finish_with_message("线路选择完成！");
         Client::new(line, credential)
     };
@@ -289,7 +327,6 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     };
 
     // 准备分P
-    let mut parts = Vec::with_capacity(this.videos.len() + template.video_prefix_len() + template.video_suffix_len());
     let video_files: Vec<_> = template.video_prefix(&tmpl).into_iter()
         .chain(this.videos.clone().into_iter())
         .chain(template.video_suffix(&tmpl).into_iter()).collect();
@@ -301,41 +338,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     }
 
     // 上传分P
-    for video in video_files {
-        let (sx, mut rx) = tokio::sync::mpsc::channel(1);
-        let metadata = tokio::fs::metadata(&video).await?;
-        let total_size = metadata.len() as usize;
-
-        let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
-        tokio::pin!(upload);
-
-        let p_filename = progress.add(ProgressBar::new_spinner());
-        p_filename.set_message(format!("{}", video.file_name().unwrap().to_string_lossy()));
-        let pb = progress.add(ProgressBar::new(total_size as u64));
-        let format = format!("{{spinner:.green}} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
-        pb.set_style(ProgressStyle::default_bar().template(&format)?);
-
-        if this.dry_run {
-            pb.inc(total_size as u64);
-            pb.finish();
-        } else {
-            loop {
-                tokio::select! {
-                    Some(size) = rx.recv() => {
-                        // 上传进度
-                        pb.inc(size as u64);
-                    }
-                    video = &mut upload => {
-                        // 上传完成
-                        parts.push(video?);
-                        p_filename.finish();
-                        pb.finish();
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    let parts = upload_video(&client, &progress, &video_files, this.dry_run).await?;
 
     // 提交视频
     let video = template.to_video(&tmpl, parts, cover)?;
@@ -343,6 +346,39 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         client.submit(video).await?;
     }
     eprintln!("投稿成功！");
+    Ok(())
+}
+
+#[derive(Parser, Clone)]
+pub(crate) struct SsAppendCommand {
+    /// 使用的帐号
+    #[clap(short = 'u', long = "user")]
+    account: Option<String>,
+
+    /// 查看的视频 ID
+    #[clap(short = 'v', long)]
+    video_id: VideoId,
+
+    /// 添加的视频
+    #[clap(required = true)]
+    videos: Vec<PathBuf>,
+}
+
+#[handler(SsAppendCommand)]
+async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+    // 1. 获取待修改视频
+    let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
+    let line = config.line().await?;
+    let client = Client::new(line, credential);
+    let current_video = client.get_video(&this.video_id).await?;
+
+    // 检查文件存在
+    for video in this.videos.iter() {
+        if !video.exists() {
+            bail!("Video not found: {}", video.display());
+        }
+    }
+
     Ok(())
 }
 

@@ -253,10 +253,6 @@ impl VideoTemplate {
             .collect()
     }
 
-    pub(crate) fn video_prefix_len(&self) -> usize {
-        self.video_prefix.len()
-    }
-
     pub(crate) fn video_suffix(&self, template: &TinyTemplate) -> Vec<PathBuf> {
         self.video_suffix
             .iter()
@@ -267,10 +263,6 @@ impl VideoTemplate {
             })
             .map(|s| PathBuf::from(s))
             .collect()
-    }
-
-    pub(crate) fn video_suffix_len(&self) -> usize {
-        self.video_suffix.len()
     }
 }
 
