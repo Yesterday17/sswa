@@ -343,9 +343,26 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     // 提交视频
     let video = template.to_video(&tmpl, parts, cover)?;
     if !this.dry_run {
-        client.submit(video).await?;
+        let mut retry = config.submit_retry();
+        loop {
+            match client.submit(&video).await {
+                Ok(_) => {
+                    eprintln!("投稿成功！");
+                    break;
+                }
+                Err(err) => {
+                    if retry == 0 {
+                        bail!("投稿失败：{}", err);
+                    } else {
+                        println!("投稿失败：{}", err);
+                        retry -= 1;
+                        println!("正在重试，剩余 {} 次", retry);
+                        std::thread::sleep(std::time::Duration::from_secs(3));
+                    }
+                }
+            }
+        }
     }
-    eprintln!("投稿成功！");
     Ok(())
 }
 
@@ -370,7 +387,7 @@ async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &C
     let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
     let line = config.line().await?;
     let client = Client::new(line, credential);
-    let mut current_video = client.get_video(&this.video_id).await?;
+    let mut video = client.get_video(&this.video_id).await?;
 
     // 2. 检查文件存在
     for video in this.videos.iter() {
@@ -384,12 +401,28 @@ async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &C
 
     // 4. 上传分P
     let mut parts = upload_videos(&client, &progress, &this.videos, false).await?.into_iter().map(|p| p.into()).collect();
-    current_video.videos.append(&mut parts);
+    video.videos.append(&mut parts);
 
     // 5. 提交视频
-    client.submit_edit(current_video).await?;
-
-    eprintln!("投稿成功！");
+    let mut retry = config.submit_retry();
+    loop {
+        match client.submit_edit(&video).await {
+            Ok(_) => {
+                eprintln!("投稿成功！");
+                break;
+            }
+            Err(err) => {
+                if retry == 0 {
+                    bail!("投稿失败：{}", err);
+                } else {
+                    println!("投稿失败：{}", err);
+                    retry -= 1;
+                    println!("正在重试，剩余 {} 次", retry);
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                }
+            }
+        }
+    }
 
     Ok(())
 }

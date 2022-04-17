@@ -152,7 +152,7 @@ impl Client {
 
 
     /// 投稿
-    pub async fn submit(&self, form: Video) -> anyhow::Result<()> {
+    pub async fn submit(&self, form: &Video) -> anyhow::Result<()> {
         let ret: serde_json::Value = self.client
             .post(format!(
                 "https://member.bilibili.com/x/vu/client/add?access_key={}",
@@ -172,7 +172,7 @@ impl Client {
     }
 
     /// 修改现有投稿
-    pub async fn submit_edit(&self, form: EditVideo) -> anyhow::Result<()> {
+    pub async fn submit_edit(&self, form: &EditVideo) -> anyhow::Result<()> {
         let ret: serde_json::Value = self.client
             .post(format!(
                 "https://member.bilibili.com/x/vu/client/edit?access_key={}",

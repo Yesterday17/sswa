@@ -11,6 +11,8 @@ pub(crate) struct Config {
     pub default_user: Option<String>,
     /// 默认是否缩放封面
     scale_cover: Option<bool>,
+    /// 提交失败的重试次数
+    submit_retry: Option<u8>,
 }
 
 impl Config {
@@ -19,7 +21,12 @@ impl Config {
             line: None,
             default_user: None,
             scale_cover: None,
+            submit_retry: None,
         }
+    }
+
+    pub(crate) fn submit_retry(&self) -> u8 {
+        self.submit_retry.unwrap_or(3)
     }
 
     pub(crate) fn need_scale_cover(&self) -> bool {
