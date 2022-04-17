@@ -355,7 +355,7 @@ pub(crate) struct SsAppendCommand {
     #[clap(short = 'u', long = "user")]
     account: Option<String>,
 
-    /// 查看的视频 ID
+    /// 待增加分P的视频 ID
     #[clap(short = 'v', long)]
     video_id: VideoId,
 
