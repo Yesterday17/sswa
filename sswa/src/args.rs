@@ -26,6 +26,10 @@ pub(crate) struct Args {
     #[clap(long = "ua")]
     user_agent: Option<String>,
 
+    /// 投稿帐号
+    #[clap(short = 'u', long = "user", global = true)]
+    account: Option<String>,
+
     /// 执行的子命令
     #[clap(subcommand)]
     command: SsCommand,
@@ -112,10 +116,6 @@ pub(crate) struct SsUploadCommand {
     /// 变量文件
     #[clap(short = 'f', long = "variable-file")]
     variable_file: Option<PathBuf>,
-
-    /// 投稿帐号
-    #[clap(short = 'u', long = "user")]
-    account: Option<String>,
 
     /// 是否跳过投稿前的检查
     #[clap(short = 'y')]
@@ -269,7 +269,7 @@ impl SsUploadCommand {
 }
 
 #[handler(SsUploadCommand)]
-async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config, args: &Args) -> anyhow::Result<()> {
     let progress = indicatif::MultiProgress::new();
 
     // 加载模板
@@ -288,7 +288,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     template.validate(&tmpl, this.skip_confirm).with_context(|| "validate template")?;
 
     // 用户登录检查
-    let credential = credential(config_root, this.account.as_deref(), template.default_user.as_deref().or(config.default_user.as_deref())).await?;
+    let credential = credential(config_root, args.account.as_deref(), template.default_user.as_deref().or(config.default_user.as_deref())).await?;
 
     // 线路选择
     let client = {
@@ -368,10 +368,6 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
 #[derive(Parser, Clone)]
 pub(crate) struct SsAppendCommand {
-    /// 使用的帐号
-    #[clap(short = 'u', long = "user")]
-    account: Option<String>,
-
     /// 待增加分P的视频 ID
     #[clap(short = 'v', long)]
     video_id: VideoId,
@@ -382,9 +378,9 @@ pub(crate) struct SsAppendCommand {
 }
 
 #[handler(SsAppendCommand)]
-async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &Config, args: &Args) -> anyhow::Result<()> {
     // 1. 获取待修改视频
-    let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
+    let credential = credential(config_root, args.account.as_deref(), config.default_user.as_deref()).await?;
     let line = config.line().await?;
     let client = Client::new(line, credential);
     let mut video = client.get_video(&this.video_id).await?;
