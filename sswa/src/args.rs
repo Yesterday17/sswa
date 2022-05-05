@@ -172,20 +172,21 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &
         let metadata = tokio::fs::metadata(&video).await?;
         let total_size = metadata.len() as usize;
 
-        let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
-        tokio::pin!(upload);
-
         let p_filename = progress.add(ProgressBar::new_spinner());
         p_filename.set_message(format!("{}", video.file_name().unwrap().to_string_lossy()));
         let pb = progress.add(ProgressBar::new(total_size as u64));
         let format = format!("{{spinner:.green}} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
         pb.set_style(ProgressStyle::default_bar().template(&format)?);
 
+        let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
+        tokio::pin!(upload);
+
         if dry_run {
             pb.inc(total_size as u64);
             pb.finish();
         } else {
-            loop {
+            pb.set_position(0);
+            let result = loop {
                 tokio::select! {
                     Some(size) = rx.recv() => {
                         // 上传进度
@@ -193,12 +194,32 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &
                     }
                     video = &mut upload => {
                         // 上传完成
-                        parts.push(video?);
                         p_filename.finish();
                         pb.finish();
-                        break;
+                        break video;
                     }
                 }
+            };
+            if let Ok(part) = result {
+                parts.push(part);
+            } else {
+                // once again
+                pb.set_position(0);
+                loop {
+                    tokio::select! {
+                        Some(size) = rx.recv() => {
+                            // 上传进度
+                            pb.inc(size as u64);
+                        }
+                        video = &mut upload => {
+                            // 上传完成
+                            p_filename.finish();
+                            pb.finish();
+                            parts.push(video?);
+                            break;
+                        }
+                    }
+                };
             }
         }
     }
@@ -400,6 +421,7 @@ async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &C
     video.videos.append(&mut parts);
 
     // 5. 提交视频
+    eprintln!("准备投稿…");
     let mut retry = config.submit_retry();
     loop {
         match client.submit_edit(&video).await {
