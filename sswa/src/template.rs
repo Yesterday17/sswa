@@ -149,6 +149,10 @@ impl VideoTemplate {
             video.to_string(template)?;
         }
 
+        if title.chars().count() >= 80 {
+            anyhow::bail!("标题不得超过80个字符");
+        }
+
         // 输出投稿信息
         eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}\n封面文件路径：{cover}",
                   dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
