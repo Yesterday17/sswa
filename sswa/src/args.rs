@@ -313,10 +313,8 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 线路选择
     let client = {
-        let p_line = progress.add(ProgressBar::new_spinner());
-        p_line.set_message("选择线路…");
         let line = config.line().await?;
-        p_line.finish_with_message("线路选择完成！");
+        progress.println(format!("已选择线路：{}", line.probe_url()));
         Client::new(line, credential)
     };
 
@@ -336,14 +334,12 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
             None => template.cover(&tmpl)?.into(),
         };
 
-        let p_cover = progress.add(ProgressBar::new_spinner());
-        p_cover.set_message("上传封面…");
         let cover = if !this.dry_run {
             client.upload_cover(cover_path).await.with_context(|| "upload cover")?
         } else {
             "".into()
         };
-        p_cover.finish_with_message("封面上传成功！");
+        progress.println("封面已上传！");
         cover
     };
 
