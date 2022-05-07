@@ -168,7 +168,6 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &
     let mut parts = Vec::with_capacity(video_files.len());
 
     for video in video_files {
-        let (sx, mut rx) = tokio::sync::mpsc::channel(1);
         let metadata = tokio::fs::metadata(&video).await?;
         let total_size = metadata.len() as usize;
 
@@ -178,14 +177,16 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &
         let format = format!("{{spinner:.green}} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
         pb.set_style(ProgressStyle::default_bar().template(&format)?);
 
-        let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
-        tokio::pin!(upload);
 
         if dry_run {
             pb.inc(total_size as u64);
             pb.finish();
         } else {
             pb.set_position(0);
+
+            let (sx, mut rx) = tokio::sync::mpsc::channel(1);
+            let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
+            tokio::pin!(upload);
             let result = loop {
                 tokio::select! {
                     Some(size) = rx.recv() => {
@@ -205,6 +206,10 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &
             } else {
                 // once again
                 pb.set_position(0);
+
+                let (sx, mut rx) = tokio::sync::mpsc::channel(1);
+                let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
+                tokio::pin!(upload);
                 loop {
                     tokio::select! {
                         Some(size) = rx.recv() => {
