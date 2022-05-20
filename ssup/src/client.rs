@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Sender;
 use crate::constants::USER_AGENT;
 use crate::credential::{Credential, ResponseData, ResponseValue};
 use crate::line::UploadLine;
-use crate::video::{VideoPart, Video, EditVideo, EditVideoPart, VideoId};
+use crate::video::{VideoPart, Video, EditVideo, EditVideoPart, VideoId, VideoCardItem};
 
 /// 上传使用的客户端
 pub struct Client {
@@ -144,12 +144,12 @@ impl Client {
                     filename: video["filename"].as_str().unwrap().into(),
                     desc: video["desc"].as_str().unwrap().into(),
                     cid: Some(video["cid"].as_u64().unwrap()),
+                    duration: video["duration"].as_u64().unwrap(),
                 }
             }).collect(),
         };
         Ok(video)
     }
-
 
     /// 投稿
     pub async fn submit(&self, form: &Video) -> anyhow::Result<()> {
@@ -188,6 +188,33 @@ impl Client {
             Ok(())
         } else {
             bail!("{}", ret)
+        }
+    }
+
+    /// 修改投稿分段章节
+    pub async fn edit_card(&self, aid: u64, cid: u64, cards: Vec<VideoCardItem>, permanent: bool) -> anyhow::Result<()> {
+        let csrf = self.credential.cookie_info.get("bili_jct").unwrap();
+        let cards = serde_json::to_string(&cards)?;
+        let response: serde_json::Value = self
+            .client
+            .post("https://member.bilibili.com/x/web/card/submit")
+            .form(&json!({
+                "aid": aid,
+                "cid": cid,
+                "type": 2, // TODO: why 2?
+                "cards": cards,
+                "permanent": permanent,
+                "csrf": csrf,
+            }))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        if response["code"] == 0 {
+            Ok(())
+        } else {
+            bail!("{}", response)
         }
     }
 }

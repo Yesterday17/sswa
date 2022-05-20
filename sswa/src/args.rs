@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::num::ParseIntError;
 use std::path::PathBuf;
 use std::str::FromStr;
 use clap::Parser;
@@ -10,7 +11,7 @@ use serde_json::Value;
 use tokio::fs;
 use ssup::{Client, Credential, CookieInfo, CookieEntry, VideoId};
 use ssup::constants::set_useragent;
-use ssup::video::VideoPart;
+use ssup::video::{VideoCardItem, VideoPart};
 use crate::config::Config;
 use crate::context::CONTEXT;
 use crate::ffmpeg;
@@ -86,6 +87,8 @@ pub(crate) enum SsCommand {
     Append(SsAppendCommand),
     /// 查看已投稿视频
     View(SsViewCommand),
+    /// 修改视频分段章节
+    Card(SsCardCommand),
     /// 帐号登录
     Login(SsAccountLoginCommand),
     /// 帐号登出
@@ -462,6 +465,90 @@ async fn handle_view(this: &SsViewCommand, config_root: &PathBuf, config: &Confi
     let client = Client::auto(credential).await?;
     let video = client.get_video(&this.video_id).await?;
     println!("{:#?}", video);
+    Ok(())
+}
+
+#[derive(Parser, Clone)]
+pub(crate) struct SsCardCommand {
+    /// 使用的帐号
+    #[clap(short = 'u', long = "user")]
+    account: Option<String>,
+
+    /// 视频 ID
+    #[clap(short, long)]
+    video_id: VideoId,
+
+    /// 视频分P编号
+    #[clap(short, long = "part")]
+    part_id: Option<usize>,
+
+    /// 分段文件路径
+    ///
+    /// 分段文件的格式如下：
+    /// [start],[description]
+    card_file: PathBuf,
+}
+
+#[handler(SsCardCommand)]
+async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+    fn parse_time_point(input: &str) -> Result<u64, ParseIntError> {
+        if input.contains(':') {
+            let mut result = 0;
+            for part in input.split(':') {
+                result = result * 60 + part.parse::<u64>()?;
+            }
+            Ok(result)
+        } else {
+            input.parse()
+        }
+    }
+
+    // parse file first
+    let data = fs::read_to_string(&this.card_file).await?;
+    let time_points: Vec<(u64, &str)> = data.split('\n')
+        .into_iter()
+        .map::<anyhow::Result<_>, _>(|line| {
+            let (start, content) = line.split_once(',').ok_or_else(|| anyhow::anyhow!("invalid line"))?;
+            let start = parse_time_point(start)?;
+            Ok((start, content))
+        })
+        .collect::<Result<_, _>>().with_context(|| "parse card file")?;
+
+    // get video info
+    let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
+    let client = Client::auto(credential).await?;
+    let video = client.get_video(&this.video_id).await?;
+
+    let part_index = match this.part_id {
+        None => 0,
+        Some(0) => 0,
+        Some(i) => i - 1,
+    };
+    if video.videos.len() <= part_index {
+        bail!("分P不存在！");
+    }
+    let part = &video.videos[part_index];
+    let cid = part.cid.expect("cid not found");
+
+    // prepare cards
+    let mut cards = Vec::with_capacity(time_points.len());
+    let mut prev_end = part.duration;
+    for i in (0..time_points.len()).rev() {
+        let (start, content) = &time_points[i];
+        cards.push(VideoCardItem {
+            from: *start,
+            to: prev_end,
+            content: content.to_string(),
+        });
+        prev_end = *start;
+    }
+    cards.reverse();
+    cards[0].from = 0;
+    // eprintln!("{:#?}", cards);
+
+    client.edit_card(video.aid, cid, cards, true).await?;
+
+    eprintln!("分段章节修改成功！");
     Ok(())
 }
 

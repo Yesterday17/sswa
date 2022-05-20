@@ -103,6 +103,9 @@ pub struct EditVideoPart {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<u64>,
+
+    #[serde(skip_serializing)]
+    pub duration: u64,
 }
 
 impl From<VideoPart> for EditVideoPart {
@@ -112,6 +115,17 @@ impl From<VideoPart> for EditVideoPart {
             filename: v.filename,
             desc: v.desc,
             cid: None,
+            duration: 0,
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct VideoCardItem {
+    /// 开始时间，单位为秒
+    pub from: u64,
+    /// 结束时间，单位为秒
+    pub to: u64,
+    /// 章节备注说明
+    pub content: String,
 }
