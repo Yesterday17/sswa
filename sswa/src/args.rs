@@ -507,12 +507,21 @@ async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Confi
     let data = fs::read_to_string(&this.card_file).await?;
     let time_points: Vec<(u64, &str)> = data.split('\n')
         .into_iter()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                None
+            } else {
+                Some(line)
+            }
+        })
         .map::<anyhow::Result<_>, _>(|line| {
             let (start, content) = line.split_once(',').ok_or_else(|| anyhow::anyhow!("invalid line"))?;
             let start = parse_time_point(start)?;
             Ok((start, content))
         })
-        .collect::<Result<_, _>>().with_context(|| "parse card file")?;
+        .collect::<Result<_, _>>()
+        .with_context(|| "parse card file")?;
 
     // get video info
     let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;

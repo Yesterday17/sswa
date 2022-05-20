@@ -1,0 +1,12 @@
+# comment starts with sharp, empty lines are skipped
+
+# each line contains [time] and [content], split by COMMA
+# [time] can be 'hh:mm:ss', 'mm:ss', or simply 'seconds'
+# [content] can contain any characters. Length limit = 16, len(half-width-character) = 0.5
+00:03,开场
+03:00,Mail #1
+07:20,Mail #2
+12:36,Mail #3
+14:47,Mail #4
+17:09,Audio Room
+22:33,SPARKLE-结束
