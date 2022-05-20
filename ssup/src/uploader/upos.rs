@@ -104,7 +104,8 @@ impl Upos {
                     end: i * chunk_size + len,
                 };
 
-                client.put(url).query(&params).body(chunk).send().await?;
+                let response = client.put(url).query(&params).body(chunk).send().await?;
+                response.error_for_status()?;
 
                 Ok::<_, anyhow::Error>((
                     json!({"partNumber": params.chunk + 1, "eTag": "etag"}),
@@ -134,7 +135,7 @@ impl Upos {
             "uploadId": self.upload_id,
             "biz_id": self.bucket.biz_id,
             "output": "json",
-            "profile": "ugcupos/bup"
+            "profile": "ugcfx/bup"
         });
         let res: serde_json::Value = self
             .client

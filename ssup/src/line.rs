@@ -53,8 +53,8 @@ impl UploadLine {
             "r": self.os,
             "profile": self.os.profile(),
             "ssl": 0u8,
-            "version": "2.8.12",
-            "build": 2081200i32,
+            "version": "2.10.4",
+            "build": 2110400,
             "name": file_name,
             "size": total_size,
         });
@@ -148,7 +148,7 @@ impl UploadLine {
         Self {
             os: Uploader::Kodo,
             probe_url: "//up-na0.qbox.me/crossdomain.xml".to_string(),
-            query: "bucket=bvcupcdnkodobm&probe_version=20200810".to_string(),
+            query: "bucket=bvcupcdnkodobm&probe_version=20211012".to_string(),
             cost: 0,
         }
     }
@@ -157,7 +157,7 @@ impl UploadLine {
         Self {
             os: Uploader::Upos,
             probe_url: "//upos-sz-upcdnbda2.bilivideo.com/OK".to_string(),
-            query: "upcdn=bda2&probe_version=20200810".to_string(),
+            query: "upcdn=bda2&probe_version=20211012".to_string(),
             cost: 0,
         }
     }
@@ -166,7 +166,7 @@ impl UploadLine {
         Self {
             os: Uploader::Upos,
             probe_url: "//upos-sz-upcdnws.bilivideo.com/OK".to_string(),
-            query: "upcdn=ws&probe_version=20200810".to_string(),
+            query: "upcdn=ws&probe_version=20211012".to_string(),
             cost: 0,
         }
     }
@@ -175,7 +175,7 @@ impl UploadLine {
         Self {
             os: Uploader::Upos,
             probe_url: "//upos-sz-upcdnqn.bilivideo.com/OK".to_string(),
-            query: "upcdn=qn&probe_version=20200810".to_string(),
+            query: "upcdn=qn&probe_version=20211012".to_string(),
             cost: 0,
         }
     }

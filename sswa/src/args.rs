@@ -319,7 +319,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     // 线路选择
     let client = {
         let line = config.line().await?;
-        progress.println(format!("已选择线路：{}", line.probe_url()));
+        progress.println(format!("已选择线路：{}", line.probe_url()))?;
         Client::new(line, credential)
     };
 
@@ -344,7 +344,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         } else {
             "".into()
         };
-        progress.println("封面已上传！");
+        progress.println("封面已上传！")?;
         cover
     };
 
