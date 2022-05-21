@@ -4,6 +4,7 @@ use ssup::video::{Subtitle, Video, VideoPart};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::exit;
+use chrono::NaiveDateTime;
 use tinytemplate::instruction::PathStep;
 use tinytemplate::TinyTemplate;
 use crate::context::CONTEXT;
@@ -27,7 +28,7 @@ pub(crate) struct VideoTemplate {
     #[serde(default)]
     tags: Vec<TemplateString>,
     /// 发布时间
-    display_time: Option<String>,
+    display_time: Option<TemplateString>,
     /// 前缀视频
     #[serde(default)]
     video_prefix: Vec<TemplateString>,
@@ -140,7 +141,14 @@ impl VideoTemplate {
 
         let tags = self.tags(template)?;
 
-        self.display_timestamp()?;
+        let display_time = match self.display_timestamp(template)? {
+            Some(time) => {
+                let time = NaiveDateTime::from_timestamp(time, 0);
+                time.format("%Y-%m-%d %H:%M:%S").to_string()
+            }
+            None => "未设置".to_string(),
+        };
+
 
         for video in self.video_prefix.iter() {
             video.to_string(template)?;
@@ -154,7 +162,7 @@ impl VideoTemplate {
         }
 
         // 输出投稿信息
-        eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}\n封面文件路径：{cover}",
+        eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}\n封面文件路径：{cover}\n公开时间：{display_time}",
                   dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
         );
         if !skip_confirm {
@@ -177,14 +185,15 @@ impl VideoTemplate {
         }
     }
 
-    fn display_timestamp(&self) -> anyhow::Result<Option<i64>> {
+    fn display_timestamp(&self, template: &TinyTemplate) -> anyhow::Result<Option<i64>> {
         Ok(match &self.display_time {
             Some(display_time) => {
-                if display_time.is_empty() {
+                let time = display_time.to_string(template)?;
+                if time.is_empty() {
                     None
                 } else {
-                    let date = DateParser::parse(&display_time);
-                    let time = TimeParser::parse(&display_time);
+                    let date = DateParser::parse(&time);
+                    let time = TimeParser::parse(&time);
                     match (date, time) {
                         (Some(date), Some(time)) => Some(date.and_time(time).timestamp() - 60 * 60 * 8),
                         _ => anyhow::bail!("定时投稿时间解析失败！"),
@@ -236,7 +245,7 @@ impl VideoTemplate {
             },
             tag: self.tags(template)?,
             videos: parts,
-            display_time: self.display_timestamp()?,
+            display_time: self.display_timestamp(template)?,
             open_subtitle: false,
         })
     }

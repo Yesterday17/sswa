@@ -25,5 +25,6 @@ indicatif = { version = "=0.17.0-rc.10", features = ["improved_unicode"] }
 regex = "1"
 rand = "0.8.4"
 date_time_parser = "0.1.1"
+chrono = "0.4"
 lazy_static = "1.4.0"
 parking_lot = "0.12.0"
