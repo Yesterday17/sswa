@@ -64,6 +64,9 @@ impl VideoTemplate {
         template.add_unnamed_template(&self.description.0)?;
         template.add_unnamed_template(&self.dynamic_text.0)?;
         template.add_unnamed_template(&self.cover.0)?;
+        if let Some(display_time) = &self.display_time {
+            template.add_unnamed_template(&display_time.0)?;
+        }
 
         if let Some(forward_source) = &self.forward_source {
             template.add_unnamed_template(&forward_source.0)?;
