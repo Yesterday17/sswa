@@ -49,7 +49,7 @@ impl VideoTemplate {
     }
 
     /// 构建模板
-    pub(crate) fn build(&self) -> anyhow::Result<TinyTemplate> {
+    pub(crate) fn build(&self, skip_confirm: bool) -> anyhow::Result<TinyTemplate> {
         let mut template = TinyTemplate::new();
         // 常用 Formatter
         template.add_formatter("comma2cn", |input, output| {
@@ -100,7 +100,7 @@ impl VideoTemplate {
                                 String::new()
                             };
 
-                            let ans = if self.variables.is_required(variable) {
+                            let ans = if !skip_confirm && self.variables.is_required(variable) {
                                 // 用户输入变量
                                 let description = match self.variables.description(variable) {
                                     Some(description) => format!("{description}({variable})"),

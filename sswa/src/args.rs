@@ -322,7 +322,7 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     CONTEXT.insert_sys("file_pwd".to_string(), this.videos[0].canonicalize()?.parent().unwrap().to_string_lossy());
 
     // 模板字符串编译
-    let tmpl = template.build().with_context(|| "build template")?;
+    let tmpl = template.build(this.skip_confirm).with_context(|| "build template")?;
 
     // 模板变量检查
     template.validate(&tmpl, this.skip_confirm).with_context(|| "validate template")?;
