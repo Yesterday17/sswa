@@ -138,6 +138,12 @@ pub(crate) struct SsUploadCommand {
     #[clap(short, long)]
     dry_run: bool,
 
+    /// 视频分p标题
+    /// 当为空时自动选取视频文件名作为标题
+    /// 不包含前缀和后缀
+    #[clap(short, long)]
+    names: Vec<String>,
+
     /// 待投稿的视频
     #[clap(required = true)]
     videos: Vec<PathBuf>,
@@ -167,10 +173,10 @@ async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<
     Ok(credential)
 }
 
-async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &[PathBuf], dry_run: bool) -> anyhow::Result<Vec<VideoPart>> {
-    let mut parts = Vec::with_capacity(video_files.len());
+async fn upload_videos(client: &Client, progress: &MultiProgress, videos: &[(PathBuf, &str)], dry_run: bool) -> anyhow::Result<Vec<VideoPart>> {
+    let mut parts = Vec::with_capacity(videos.len());
 
-    for video in video_files {
+    for (video, video_name) in videos {
         let metadata = tokio::fs::metadata(&video).await?;
         let total_size = metadata.len() as usize;
 
@@ -211,7 +217,12 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, video_files: &
                 pb.set_position(0);
 
                 let (sx, mut rx) = tokio::sync::mpsc::channel(1);
-                let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
+                let upload = client.upload_video_part(
+                    &video,
+                    total_size,
+                    sx,
+                    if video_name.is_empty() { None } else { Some(video_name.to_string()) },
+                );
                 tokio::pin!(upload);
                 loop {
                     tokio::select! {
@@ -352,11 +363,11 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     };
 
     // 准备分P
-    let video_files: Vec<_> = template.video_prefix(&tmpl).into_iter()
-        .chain(this.videos.clone().into_iter())
-        .chain(template.video_suffix(&tmpl).into_iter()).collect();
+    let video_files: Vec<(PathBuf, &str)> = template.video_prefix(&tmpl).into_iter().map(|v| (v, ""))
+        .chain(this.videos.clone().into_iter().enumerate().map(|(i, v)| (v, this.names.get(i).map(|r| r.as_str()).unwrap_or(""))))
+        .chain(template.video_suffix(&tmpl).into_iter().map(|v| (v, ""))).collect();
     // 检查文件存在
-    for video in video_files.iter() {
+    for (video, _) in video_files.iter() {
         if !video.exists() {
             bail!("Video not found: {}", video.display());
         }
@@ -397,6 +408,12 @@ pub(crate) struct SsAppendCommand {
     #[clap(short = 'v', long)]
     video_id: VideoId,
 
+    /// 视频分p标题
+    /// 当为空时自动选取视频文件名作为标题
+    /// 不包含前缀和后缀
+    #[clap(short, long)]
+    names: Vec<String>,
+
     /// 添加的视频
     #[clap(required = true)]
     videos: Vec<PathBuf>,
@@ -420,11 +437,16 @@ async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &C
     // 3. 准备进度条
     let progress = indicatif::MultiProgress::new();
 
-    // 4. 上传分P
-    let mut parts = upload_videos(&client, &progress, &this.videos, false).await?.into_iter().map(|p| p.into()).collect();
+    // 4. 准备文件名
+    let videos: Vec<_> = this.videos.iter().enumerate()
+        .map(|(i, v)| (v.clone(), this.names.get(i).map(|s| s.as_str()).unwrap_or("")))
+        .collect();
+
+    // 5. 上传分P
+    let mut parts = upload_videos(&client, &progress, &videos, false).await?.into_iter().map(|p| p.into()).collect();
     video.videos.append(&mut parts);
 
-    // 5. 提交视频
+    // 6. 提交视频
     eprintln!("准备投稿…");
     let mut retry = config.submit_retry();
     loop {
