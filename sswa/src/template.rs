@@ -146,8 +146,8 @@ impl VideoTemplate {
 
         let display_time = match self.display_timestamp(template)? {
             Some(time) => {
-                let time = NaiveDateTime::from_timestamp(time, 0);
-                time.format("%Y-%m-%d %H:%M:%S").to_string()
+                let time = NaiveDateTime::from_timestamp(time + 60 * 60 * 8, 0);
+                time.format("%Y-%m-%d %H:%M:%S (UTC+8)").to_string()
             }
             None => "未设置".to_string(),
         };
