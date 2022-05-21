@@ -120,9 +120,13 @@ pub(crate) struct SsUploadCommand {
     #[clap(short = 'f', long = "variable-file")]
     variable_file: Option<PathBuf>,
 
-    /// 是否跳过投稿前的检查
-    #[clap(short = 'y')]
-    skip_confirm: bool,
+    /// 检查的等级
+    ///
+    /// 出现1次：跳过投稿信息确认
+    /// 出现2次：跳过变量输入，当存在必填变量时会产生错误
+    /// 出现3次：跳过所有变量输入且不产生错误
+    #[clap(short = 'y', parse(from_occurrences))]
+    skip_level: u8,
 
     /// 是否自动缩放封面到 960*600
     #[clap(long)]
@@ -322,10 +326,10 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     CONTEXT.insert_sys("file_pwd".to_string(), this.videos[0].canonicalize()?.parent().unwrap().to_string_lossy());
 
     // 模板字符串编译
-    let tmpl = template.build(this.skip_confirm).with_context(|| "build template")?;
+    let tmpl = template.build(this.skip_level).with_context(|| "build template")?;
 
     // 模板变量检查
-    template.validate(&tmpl, this.skip_confirm).with_context(|| "validate template")?;
+    template.validate(&tmpl, this.skip_level).with_context(|| "validate template")?;
 
     // 用户登录检查
     let credential = credential(config_root, args.account.as_deref(), template.default_user.as_deref().or(config.default_user.as_deref())).await?;

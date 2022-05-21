@@ -49,7 +49,7 @@ impl VideoTemplate {
     }
 
     /// 构建模板
-    pub(crate) fn build(&self, skip_confirm: bool) -> anyhow::Result<TinyTemplate> {
+    pub(crate) fn build(&self, skip_level: u8) -> anyhow::Result<TinyTemplate> {
         let mut template = TinyTemplate::new();
         // 常用 Formatter
         template.add_formatter("comma2cn", |input, output| {
@@ -100,20 +100,27 @@ impl VideoTemplate {
                                 String::new()
                             };
 
-                            let ans = if !skip_confirm && self.variables.is_required(variable) {
-                                // 用户输入变量
+                            let ans = if self.variables.is_required(variable) {
                                 let description = match self.variables.description(variable) {
                                     Some(description) => format!("{description}({variable})"),
                                     None => format!("{variable}"),
                                 };
+                                if skip_level < 2 {
+                                    // 用户输入变量
+                                    let question = requestty::Question::input(variable)
+                                        .default(default)
+                                        .message(description);
 
-                                let question = requestty::Question::input(variable)
-                                    .default(default)
-                                    .message(description);
-
-                                let question = question.build();
-                                let ans = requestty::prompt_one(question)?;
-                                ans.as_string().unwrap().to_string()
+                                    let question = question.build();
+                                    let ans = requestty::prompt_one(question)?;
+                                    ans.as_string().unwrap().to_string()
+                                } else if skip_level == 2 {
+                                    // 2级跳过变量输入，但产生报错
+                                    panic!("变量未输入：{description}");
+                                } else /* if skip_level > 2 */ {
+                                    // 3级+跳过变量输入，且不报错
+                                    default
+                                }
                             } else {
                                 default
                             };
@@ -130,7 +137,7 @@ impl VideoTemplate {
     }
 
     /// 校验模板字符串
-    pub(crate) fn validate(&self, template: &TinyTemplate, skip_confirm: bool) -> anyhow::Result<()> {
+    pub(crate) fn validate(&self, template: &TinyTemplate, skip_level: u8) -> anyhow::Result<()> {
         let title = self.title.to_string(template)?;
         let desc = self.description.to_string(template)?;
         let dynamic = self.dynamic_text.to_string(template)?;
@@ -168,7 +175,8 @@ impl VideoTemplate {
         eprintln!("标题：{title}\n来源：{forward_source}\n简介：\n---简介开始---\n{desc}\n---简介结束---\n标签：{tags}\n动态：{dynamic}\n封面文件路径：{cover}\n公开时间：{display_time}",
                   dynamic = if dynamic.is_empty() { "（空）" } else { &dynamic },
         );
-        if !skip_confirm {
+        // 0级对投稿信息进行确认
+        if skip_level == 0 {
             let question = requestty::Question::confirm("anonymous")
                 .message("投稿信息如上，是否正确？")
                 .build();
