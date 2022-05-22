@@ -1,0 +1,25 @@
+# 标题
+title = "{{title}}"
+# 描述
+description = "{{description}}"
+# 转载来源，该字段存在且不为空时以转载形式投稿，否则投成自制
+forward-source = "{{source}}"
+# 投稿分区
+tid = 152
+# 封面图片路径
+cover = "{{cover}}"
+# 动态文本
+dynamic-text = "{{dynamic}}"
+# 标签
+tags = ["{{tags}}"]
+# 定时投稿
+display-time = "{{time}}"
+
+[variables]
+title = "标题"
+description = "描述"
+source = "视频来源"
+cover = "封面路径"
+dynamic = "动态"
+tags = "标签"
+time = "公开时间"

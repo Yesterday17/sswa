@@ -54,7 +54,7 @@ impl UploadLine {
             "profile": self.os.profile(),
             "ssl": 0u8,
             "version": "2.10.4",
-            "build": 2110400,
+            "build": 2100400,
             "name": file_name,
             "size": total_size,
         });
