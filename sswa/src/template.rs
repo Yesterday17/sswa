@@ -21,8 +21,10 @@ pub(crate) struct VideoTemplate {
     /// 分区号
     tid: u16,
     /// 封面图片
+    #[serde(default)]
     cover: TemplateString,
     /// 动态文本
+    #[serde(default)]
     dynamic_text: TemplateString,
     /// 标签
     #[serde(default)]
@@ -290,7 +292,7 @@ impl VideoTemplate {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct TemplateString(String);
 
 impl TemplateString {

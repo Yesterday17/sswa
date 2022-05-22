@@ -132,9 +132,9 @@ pub(crate) struct SsUploadCommand {
     #[clap(long)]
     scale_cover: Option<bool>,
 
-    /// 是否忽略简单变量文件中值前后的引号（包括单引号和双引号）
-    #[clap(long = "no-quote", parse(from_flag = std::ops::Not::not))]
-    skip_quotes: bool,
+    /// 是否保留简单变量文件中值前后的引号（包括单引号和双引号）
+    #[clap(short = 'q', long = "quotes")]
+    keep_quote_pairs: bool,
 
     /// 是否模拟投稿
     ///
@@ -291,7 +291,7 @@ impl SsUploadCommand {
                         let (key, value) = line.split_once('=').unwrap_or((&line, ""));
                         let key = key.trim();
                         let mut value = value.trim_matches(' ');
-                        if self.skip_quotes &&
+                        if !self.keep_quote_pairs &&
                             ((value.starts_with('"') && value.ends_with('"')) ||
                                 (value.starts_with('\'') && value.ends_with('\''))) {
                             value = &value[1..value.len() - 1];
