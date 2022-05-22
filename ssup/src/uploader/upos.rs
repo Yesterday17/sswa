@@ -135,7 +135,7 @@ impl Upos {
             "uploadId": self.upload_id,
             "biz_id": self.bucket.biz_id,
             "output": "json",
-            "profile": "ugcfx/bup"
+            "profile": "ugcupos/bup"
         });
         let res: serde_json::Value = self
             .client
