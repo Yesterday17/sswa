@@ -9,6 +9,8 @@ use serde_json::{json, Value};
 /// 存储用户的登录信息
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Credential {
+    #[serde(default)]
+    login_time: u64,
     pub(crate) cookie_info: CookieInfo,
     pub(crate) sso: Vec<String>,
     pub(crate) token_info: TokenInfo,
@@ -61,9 +63,12 @@ impl Credential {
             match res {
                 ResponseData {
                     code: 0,
-                    data: ResponseValue::Login(info),
+                    data: ResponseValue::Login(mut info),
                     ..
                 } => {
+                    if info.login_time == 0 {
+                        info.login_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+                    }
                     return Ok(info);
                 }
                 ResponseData { code: 86039, .. } => {
@@ -118,12 +123,22 @@ impl Credential {
         Self::from_qrcode(qrcode).await
     }
 
-    pub async fn refresh(&mut self) -> anyhow::Result<()> {
-        let refreshed = Credential::from_cookies(&self.cookie_info).await?;
-        self.cookie_info = refreshed.cookie_info;
-        self.token_info = refreshed.token_info;
-        self.sso = refreshed.sso;
-        Ok(())
+    fn need_refresh(&self) -> bool {
+        // Token过期前30天内重新获取
+        (self.login_time + self.token_info.expires_in as u64) < (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 30 * 86400)
+    }
+
+    pub async fn refresh(&mut self, force: bool) -> anyhow::Result<bool> {
+        if force || self.need_refresh() {
+            let refreshed = Credential::from_cookies(&self.cookie_info).await?;
+            self.login_time = refreshed.login_time;
+            self.cookie_info = refreshed.cookie_info;
+            self.token_info = refreshed.token_info;
+            self.sso = refreshed.sso;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 

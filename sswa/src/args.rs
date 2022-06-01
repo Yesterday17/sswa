@@ -155,12 +155,19 @@ pub(crate) struct SsUploadCommand {
 
 /// 尝试导入用户凭据，失败时则以该名称创建新的凭据
 async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<&str>) -> anyhow::Result<Credential> {
-    let account = root.join("accounts")
+    let account_file = root.join("accounts")
         .join(format!("{}.json", account.or(default_user).expect("account not specified")));
-    if account.exists() {
+    if account_file.exists() {
         // 凭据存在，读取并返回
-        let account = fs::read_to_string(&account).await?;
-        let account: Credential = serde_json::from_str(&account)?;
+        let account = fs::read_to_string(&account_file).await?;
+        let mut account: Credential = serde_json::from_str(&account)?;
+
+        // 自动更新凭据
+        let refreshed = account.refresh(false).await?;
+        if refreshed {
+            fs::write(&account_file, serde_json::to_string(&account)?).await?;
+        }
+
         if let Ok(nickname) = account.get_nickname().await {
             eprintln!("投稿用户：{nickname}");
             return Ok(account);
@@ -173,7 +180,7 @@ async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<
     let qrcode = Credential::get_qrcode().await?;
     eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
     let credential = Credential::from_qrcode(qrcode).await?;
-    fs::write(account, serde_json::to_string(&credential)?).await?;
+    fs::write(account_file, serde_json::to_string(&credential)?).await?;
     Ok(credential)
 }
 
@@ -508,6 +515,11 @@ pub(crate) struct SsCardCommand {
     #[clap(short, long = "part")]
     part_id: Option<usize>,
 
+    /// 是否强制进度条显示
+    /// 在客户端上会遮挡字幕，如有需要请手动开启
+    #[clap(long)]
+    permanent: bool,
+
     /// 分段文件路径
     ///
     /// 分段文件的格式如下：
@@ -581,7 +593,7 @@ async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Confi
     cards[0].from = 0;
     // eprintln!("{:#?}", cards);
 
-    client.edit_card(video.aid, cid, cards, true).await?;
+    client.edit_card(video.aid, cid, cards, this.permanent).await?;
 
     eprintln!("分段章节修改成功！");
     Ok(())
