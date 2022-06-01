@@ -231,6 +231,14 @@ impl VideoTemplate {
             }).collect::<Vec<String>>();
             tags.extend(results);
         }
+        if tags.len() > 12 {
+            anyhow::bail!("标签不得超过12个");
+        }
+        for tag in tags.iter() {
+            if tag.chars().count() >= 20 {
+                anyhow::bail!("标签不得超过20个字符");
+            }
+        }
         Ok(tags.join(","))
     }
 
