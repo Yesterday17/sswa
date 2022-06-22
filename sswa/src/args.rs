@@ -3,7 +3,7 @@ use std::num::ParseIntError;
 use std::path::PathBuf;
 use std::str::FromStr;
 use clap::Parser;
-use anni_clap_handler::{Context as ClapContext, Handler, handler};
+use clap_handler::{Context as ClapContext, Handler, handler};
 use anyhow::{bail, Context};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::Rng;
@@ -36,7 +36,7 @@ pub(crate) struct Args {
     command: SsCommand,
 }
 
-#[anni_clap_handler::async_trait]
+#[clap_handler::async_trait]
 impl Handler for Args {
     async fn handle_command(&mut self, ctx: &mut ClapContext) -> anyhow::Result<()> {
         // 初始化配置文件目录

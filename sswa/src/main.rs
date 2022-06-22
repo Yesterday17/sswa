@@ -1,6 +1,6 @@
 use crate::args::Args;
 use clap::Parser;
-use anni_clap_handler::Handler;
+use clap_handler::Handler;
 
 mod config;
 mod args;

@@ -8,7 +8,7 @@ ssup = { path = "../ssup" }
 tinytemplate = { path = "../tinytemplate" }
 
 clap = { version = "3.0.14", features = ["derive"] }
-anni-clap-handler = { git = "https://github.com/ProjectAnni/anni", features = ["async"] }
+clap-handler = { version = "0.1.1", features = ["async"] }
 directories-next = "2.0.0"
 tempfile = "3.3.0"
 

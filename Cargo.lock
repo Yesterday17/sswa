@@ -12,27 +12,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anni-clap-handler"
-version = "0.1.0"
-source = "git+https://github.com/ProjectAnni/anni#c4fbd6bb745d56db5673261ebd98d22c9274a440"
-dependencies = [
- "anni-clap-handler-derive",
- "anyhow",
- "async-trait",
-]
-
-[[package]]
-name = "anni-clap-handler-derive"
-version = "0.1.0"
-source = "git+https://github.com/ProjectAnni/anni#c4fbd6bb745d56db5673261ebd98d22c9274a440"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "anyhow"
 version = "1.0.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -204,6 +183,30 @@ dependencies = [
  "strsim",
  "termcolor",
  "textwrap 0.14.2",
+]
+
+[[package]]
+name = "clap-handler"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bdbff292f9db13ddb40c254fa3e0b19082948604bb052aa462f9a838ef3e911"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "clap-handler-derive",
+]
+
+[[package]]
+name = "clap-handler-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bc84d6cb04f5b8d9e6ebb696fe1780abcf1f5889550a788a433fe33f1b783ae"
+dependencies = [
+ "cfg-if",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1650,10 +1653,10 @@ dependencies = [
 name = "sswa"
 version = "0.2.0"
 dependencies = [
- "anni-clap-handler",
  "anyhow",
  "chrono",
  "clap 3.0.14",
+ "clap-handler",
  "date_time_parser",
  "directories-next",
  "indicatif",
