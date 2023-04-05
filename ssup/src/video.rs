@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::num::ParseIntError;
 use std::str::FromStr;
-use serde::{Deserialize, Serialize};
 
 /// 视频
 #[derive(Serialize, Debug)]
@@ -59,13 +59,17 @@ impl FromStr for VideoId {
 
         if s.starts_with("av") {
             // av{number}
-            Ok(VideoId::AId(s[2..].parse().map_err(|e: ParseIntError| e.to_string())?))
+            Ok(VideoId::AId(
+                s[2..].parse().map_err(|e: ParseIntError| e.to_string())?,
+            ))
         } else if s.starts_with("BV") {
             // BV1kS4y1P7vA
             Ok(VideoId::BVId(s.to_string()))
         } else {
             // {number}
-            Ok(VideoId::AId(s.parse().map_err(|e: ParseIntError| e.to_string())?))
+            Ok(VideoId::AId(
+                s.parse().map_err(|e: ParseIntError| e.to_string())?,
+            ))
         }
     }
 }
@@ -93,6 +97,9 @@ pub struct EditVideo {
     pub tag: String,
     /// 分P
     pub videos: Vec<EditVideoPart>,
+    /// 秒为单位的定时投稿时间
+    #[serde(rename = "dtime")]
+    pub display_time: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

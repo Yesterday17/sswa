@@ -1,17 +1,17 @@
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
+use crate::constants::USER_AGENT;
+use crate::credential::{Credential, ResponseData, ResponseValue};
+use crate::line::UploadLine;
+use crate::video::{EditVideo, EditVideoPart, Video, VideoCardItem, VideoId, VideoPart};
 use anyhow::bail;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
 use reqwest_cookie_store::CookieStoreMutex;
 use serde_json::json;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::fs;
 use tokio::sync::mpsc::Sender;
-use crate::constants::USER_AGENT;
-use crate::credential::{Credential, ResponseData, ResponseValue};
-use crate::line::UploadLine;
-use crate::video::{VideoPart, Video, EditVideo, EditVideoPart, VideoId, VideoCardItem};
 
 /// 上传使用的客户端
 pub struct Client {
@@ -25,7 +25,10 @@ pub struct Client {
 impl Client {
     pub fn new(upload_line: UploadLine, credential: Credential) -> Self {
         let mut headers = HeaderMap::new();
-        headers.insert("Referer", HeaderValue::from_static("https://www.bilibili.com/"));
+        headers.insert(
+            "Referer",
+            HeaderValue::from_static("https://www.bilibili.com/"),
+        );
         headers.insert("Connection", HeaderValue::from_static("keep-alive"));
 
         let cookie_store = cookie_store::CookieStore::default();
@@ -64,7 +67,9 @@ impl Client {
 
     /// 上传封面
     pub async fn upload_cover<P>(&self, cover: P) -> anyhow::Result<String>
-        where P: AsRef<Path> {
+    where
+        P: AsRef<Path>,
+    {
         let cover = fs::read(cover).await?;
 
         let csrf = self.credential.cookie_info.get("bili_jct").unwrap();
@@ -87,10 +92,12 @@ impl Client {
             ResponseData {
                 data: ResponseValue::Value(value),
                 ..
-            } => return Ok(value["url"]
-                .as_str()
-                .ok_or(anyhow::anyhow!("cover_up error"))?
-                .into()),
+            } => {
+                return Ok(value["url"]
+                    .as_str()
+                    .ok_or(anyhow::anyhow!("cover_up error"))?
+                    .into())
+            }
             _ => {
                 unreachable!()
             }
@@ -98,8 +105,16 @@ impl Client {
     }
 
     /// 上传单个分P
-    pub async fn upload_video_part<P>(&self, video: P, total_size: usize, sx: Sender<usize>, part_name: Option<String>) -> anyhow::Result<VideoPart>
-        where P: AsRef<Path> {
+    pub async fn upload_video_part<P>(
+        &self,
+        video: P,
+        total_size: usize,
+        sx: Sender<usize>,
+        part_name: Option<String>,
+    ) -> anyhow::Result<VideoPart>
+    where
+        P: AsRef<Path>,
+    {
         let mut part = self.line.upload(self, video, total_size, sx).await?;
         if let Some(name) = part_name {
             part.title = Some(name);
@@ -114,8 +129,11 @@ impl Client {
             VideoId::BVId(bvid) => format!("bvid={bvid}"),
         };
 
-        let ret: serde_json::Value = self.client
-            .get(format!("https://member.bilibili.com/x/client/archive/view?{id}"))
+        let ret: serde_json::Value = self
+            .client
+            .get(format!(
+                "https://member.bilibili.com/x/client/archive/view?{id}"
+            ))
             .send()
             .await?
             .json()
@@ -138,22 +156,27 @@ impl Client {
             desc: data["desc"].as_str().unwrap().into(),
             dynamic: data["dynamic"].as_str().unwrap().into(),
             tag: data["tag"].as_str().unwrap().into(),
-            videos: ret["videos"].as_array().unwrap().iter().map(|video| {
-                EditVideoPart {
+            videos: ret["videos"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|video| EditVideoPart {
                     title: Some(video["title"].as_str().unwrap().into()),
                     filename: video["filename"].as_str().unwrap().into(),
                     desc: video["desc"].as_str().unwrap().into(),
                     cid: Some(video["cid"].as_u64().unwrap()),
                     duration: video["duration"].as_u64().unwrap(),
-                }
-            }).collect(),
+                })
+                .collect(),
+            display_time: data["dtime"].as_i64(),
         };
         Ok(video)
     }
 
     /// 投稿
     pub async fn submit(&self, form: &Video) -> anyhow::Result<()> {
-        let ret: serde_json::Value = self.client
+        let ret: serde_json::Value = self
+            .client
             .post(format!(
                 "https://member.bilibili.com/x/vu/client/add?access_key={}",
                 self.credential.token_info.access_token
@@ -173,7 +196,8 @@ impl Client {
 
     /// 修改现有投稿
     pub async fn submit_edit(&self, form: &EditVideo) -> anyhow::Result<()> {
-        let ret: serde_json::Value = self.client
+        let ret: serde_json::Value = self
+            .client
             .post(format!(
                 "https://member.bilibili.com/x/vu/client/edit?access_key={}",
                 self.credential.token_info.access_token
@@ -192,7 +216,13 @@ impl Client {
     }
 
     /// 修改投稿分段章节
-    pub async fn edit_card(&self, aid: u64, cid: u64, cards: Vec<VideoCardItem>, permanent: bool) -> anyhow::Result<()> {
+    pub async fn edit_card(
+        &self,
+        aid: u64,
+        cid: u64,
+        cards: Vec<VideoCardItem>,
+        permanent: bool,
+    ) -> anyhow::Result<()> {
         let csrf = self.credential.cookie_info.get("bili_jct").unwrap();
         let cards = serde_json::to_string(&cards)?;
         let response: serde_json::Value = self
