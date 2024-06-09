@@ -4,11 +4,11 @@ use crate::compiler::TemplateCompiler;
 use crate::error::Error::*;
 use crate::error::*;
 use crate::instruction::{Instruction, Path, PathSlice, PathStep};
+use crate::ValueFormatter;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::slice;
-use crate::ValueFormatter;
 
 /// Enum defining the different kinds of records on the context stack.
 enum ContextElement<'render, 'template> {
@@ -345,15 +345,18 @@ impl<'template> Template<'template> {
     }
 
     pub(crate) fn paths(&self) -> Vec<&Path<'template>> {
-        self.instructions.iter().filter_map(|i| match i {
-            Instruction::Value(value) => Some(value),
-            Instruction::FormattedValue(value, _formatter) => Some(value),
-            Instruction::Branch(condition, _, _) => Some(condition),
-            // Instruction::PushNamedContext(context, _) => Some(context),
-            // Instruction::PushIterationContext(context, _) => Some(context),
-            Instruction::Call(_template_name, context) => Some(context),
-            _ => None,
-        }).collect()
+        self.instructions
+            .iter()
+            .filter_map(|i| match i {
+                Instruction::Value(value) => Some(value),
+                Instruction::FormattedValue(value, _formatter) => Some(value),
+                Instruction::Branch(condition, _, _) => Some(condition),
+                // Instruction::PushNamedContext(context, _) => Some(context),
+                // Instruction::PushIterationContext(context, _) => Some(context),
+                Instruction::Call(_template_name, context) => Some(context),
+                _ => None,
+            })
+            .collect()
     }
 }
 

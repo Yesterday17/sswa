@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
 use serde_json::Value;
+use std::collections::HashMap;
 
 lazy_static! {
     pub static ref CONTEXT: Context = Context::new();
@@ -15,7 +15,9 @@ impl Context {
     }
 
     pub fn insert_sys<S>(&self, mut key: String, value: S)
-        where S: Into<Value> {
+    where
+        S: Into<Value>,
+    {
         let value = value.into();
         self.insert(format!("${key}"), value.clone());
 
@@ -25,7 +27,9 @@ impl Context {
     }
 
     pub fn insert<S>(&self, key: String, value: S)
-        where S: Into<Value> {
+    where
+        S: Into<Value>,
+    {
         self.0.write().insert(key, value.into());
     }
 

@@ -40,7 +40,9 @@ impl Config {
             "bda2" => UploadLine::bda2(),
             "ws" => UploadLine::ws(),
             "qn" => UploadLine::qn(),
-            "auto" => UploadLine::auto().await.with_context(|| "auto select upload line")?,
+            "auto" => UploadLine::auto()
+                .await
+                .with_context(|| "auto select upload line")?,
             _ => unimplemented!(),
         };
         Ok(line)

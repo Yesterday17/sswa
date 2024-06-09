@@ -75,13 +75,13 @@ pub mod instruction;
 pub mod syntax;
 mod template;
 
+use crate::instruction::Path;
 use error::*;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Write;
 use template::Template;
-use crate::instruction::Path;
 
 /// Type alias for closures which can be used as value formatters.
 pub type ValueFormatter = fn(&Value, &mut String) -> Result<()>;
@@ -198,8 +198,7 @@ impl<'template> TinyTemplate<'template> {
     }
 
     /// Changes the default formatter from [`format`](fn.format.html) to `formatter`. Useful in combination with [`format_unescaped`](fn.format_unescaped.html) to deactivate HTML-escaping
-    pub fn set_default_formatter(&mut self, formatter: ValueFormatter)
-    {
+    pub fn set_default_formatter(&mut self, formatter: ValueFormatter) {
         self.default_formatter = Box::new(formatter);
     }
 
@@ -209,14 +208,18 @@ impl<'template> TinyTemplate<'template> {
     }
 
     pub fn get_paths(&self) -> Vec<&Path<'template>> {
-        self.templates.values().map(|s| s.paths()).flatten().collect()
+        self.templates
+            .values()
+            .map(|s| s.paths())
+            .flatten()
+            .collect()
     }
 
     /// Render the template with the given name using the given context object. The context
     /// object must implement `serde::Serialize` as it will be converted to `serde_json::Value`.
     pub fn render<C>(&self, template: &str, context: &C) -> Result<String>
-        where
-            C: Serialize,
+    where
+        C: Serialize,
     {
         let value = serde_json::to_value(context)?;
         match self.templates.get(template) {

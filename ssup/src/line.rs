@@ -1,14 +1,14 @@
-use serde::{Serialize, Deserialize};
-use serde::de::DeserializeOwned;
-use std::path::Path;
-use std::time::Instant;
-use anyhow::bail;
-use futures::TryStreamExt;
-use serde_json::json;
-use tokio::sync::mpsc::Sender;
 use crate::client::Client;
 use crate::uploader::*;
 use crate::video::VideoPart;
+use anyhow::bail;
+use futures::TryStreamExt;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::path::Path;
+use std::time::Instant;
+use tokio::sync::mpsc::Sender;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -45,9 +45,22 @@ impl UploadLine {
         &self.probe_url
     }
 
-    pub(crate) async fn pre_upload<T, P>(&self, client: &Client, file_path: P, total_size: usize) -> anyhow::Result<T>
-        where T: DeserializeOwned, P: AsRef<Path> {
-        let file_name = file_path.as_ref().file_name().ok_or("No filename").unwrap().to_str();
+    pub(crate) async fn pre_upload<T, P>(
+        &self,
+        client: &Client,
+        file_path: P,
+        total_size: usize,
+    ) -> anyhow::Result<T>
+    where
+        T: DeserializeOwned,
+        P: AsRef<Path>,
+    {
+        let file_name = file_path
+            .as_ref()
+            .file_name()
+            .ok_or("No filename")
+            .unwrap()
+            .to_str();
 
         let query: serde_json::Value = json!({
             "r": self.os,
@@ -61,21 +74,33 @@ impl UploadLine {
         log::debug!("Pre uploading with query: {}", query);
         Ok(client
             .client
-            .get(format!("https://member.bilibili.com/preupload?{}", self.query))
+            .get(format!(
+                "https://member.bilibili.com/preupload?{}",
+                self.query
+            ))
             .query(&query)
             .send()
             .await?
             .json()
-            .await?
-        )
+            .await?)
     }
 
-    pub(crate) async fn upload<P>(&self, client: &Client, file_path: P, total_size: usize, sx: Sender<usize>) -> anyhow::Result<VideoPart>
-        where P: AsRef<Path> {
+    pub(crate) async fn upload<P>(
+        &self,
+        client: &Client,
+        file_path: P,
+        total_size: usize,
+        sx: Sender<usize>,
+    ) -> anyhow::Result<VideoPart>
+    where
+        P: AsRef<Path>,
+    {
         match self.os {
             Uploader::Upos => {
                 log::debug!("Uploading with upos");
-                let bucket = self.pre_upload(client, file_path.as_ref(), total_size).await?;
+                let bucket = self
+                    .pre_upload(client, file_path.as_ref(), total_size)
+                    .await?;
                 let upos = Upos::from(bucket).await?;
 
                 let mut parts = Vec::new();
@@ -90,11 +115,10 @@ impl UploadLine {
             }
             Uploader::Kodo => {
                 log::debug!("Uploading with kodo");
-                let bucket = self.pre_upload(client, file_path.as_ref(), total_size).await?;
-                Kodo::from(bucket)
-                    .await?
-                    .upload(file_path, sx)
-                    .await
+                let bucket = self
+                    .pre_upload(client, file_path.as_ref(), total_size)
+                    .await?;
+                Kodo::from(bucket).await?.upload(file_path, sx).await
             }
             _ => unimplemented!(),
         }

@@ -4,7 +4,10 @@ use futures::Stream;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
-pub(crate) fn read_chunk(mut file: File, chunk_size: usize) -> impl Stream<Item=anyhow::Result<Bytes>> {
+pub(crate) fn read_chunk(
+    mut file: File,
+    chunk_size: usize,
+) -> impl Stream<Item = anyhow::Result<Bytes>> {
     let mut buffer = vec![0u8; chunk_size];
 
     let mut buf = BytesMut::with_capacity(chunk_size);

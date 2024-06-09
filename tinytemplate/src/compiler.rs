@@ -1,4 +1,3 @@
-use std::cmp::min;
 /// The compiler module houses the code which parses and compiles templates. TinyTemplate implements
 /// a simple bytecode interpreter (see the [instruction] module for more details) to render templates.
 /// The [`TemplateCompiler`](struct.TemplateCompiler.html) struct is responsible for parsing the
@@ -6,6 +5,7 @@ use std::cmp::min;
 use crate::error::Error::*;
 use crate::error::{get_offset, Error, Result};
 use crate::instruction::{Instruction, Path, PathStep};
+use std::cmp::min;
 
 /// The end point of a branch or goto instruction is not known.
 const UNKNOWN: usize = std::usize::MAX;
@@ -107,7 +107,8 @@ impl<'template> TemplateCompiler<'template> {
                         } else {
                             return Err(self.parse_error(
                                 discriminant,
-                                "Found a closing endwith that doesn't match with a preceding with.".to_string(),
+                                "Found a closing endwith that doesn't match with a preceding with."
+                                    .to_string(),
                             ));
                         }
                     }
@@ -272,9 +273,15 @@ impl<'template> TemplateCompiler<'template> {
             self.remaining_text
         };
 
-        let position_value = search_substr.find("{{").unwrap_or_else(|| search_substr.len());
-        let position_block = search_substr.find("{%").unwrap_or_else(|| search_substr.len());
-        let position_comment = search_substr.find("{#").unwrap_or_else(|| search_substr.len());
+        let position_value = search_substr
+            .find("{{")
+            .unwrap_or_else(|| search_substr.len());
+        let position_block = search_substr
+            .find("{%")
+            .unwrap_or_else(|| search_substr.len());
+        let position_comment = search_substr
+            .find("{#")
+            .unwrap_or_else(|| search_substr.len());
         let mut position = min(position_value, min(position_block, position_comment));
         if escaped {
             position += 2;

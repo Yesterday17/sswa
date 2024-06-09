@@ -2,11 +2,11 @@ use crate::args::Args;
 use clap::Parser;
 use clap_handler::Handler;
 
-mod config;
 mod args;
-mod template;
-mod ffmpeg;
+mod config;
 mod context;
+mod ffmpeg;
+mod template;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

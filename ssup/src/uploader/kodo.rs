@@ -1,19 +1,19 @@
+use crate::constants::{CONCURRENCY, USER_AGENT};
+use crate::uploader::utils::read_chunk;
+use crate::video::VideoPart;
 use anyhow::{anyhow, bail};
-use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
-use std::path::Path;
-use std::str::FromStr;
-use std::time::Duration;
 use futures::{StreamExt, TryStreamExt};
 use reqwest::header::{HeaderMap, HeaderName};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::Path;
+use std::str::FromStr;
+use std::time::Duration;
 use tokio::fs::File;
 use tokio::sync::mpsc::Sender;
-use crate::constants::{CONCURRENCY, USER_AGENT};
-use crate::uploader::utils::read_chunk;
-use crate::video::VideoPart;
 
 pub struct Kodo {
     client: ClientWithMiddleware,
@@ -47,7 +47,9 @@ impl Kodo {
     }
 
     pub async fn upload<P>(self, path: P, sx: Sender<usize>) -> anyhow::Result<VideoPart>
-        where P: AsRef<Path> {
+    where
+        P: AsRef<Path>,
+    {
         let file = File::open(path.as_ref()).await?;
         let total_size = file.metadata().await?.len();
         let chunk_size = 4194304;
@@ -62,12 +64,8 @@ impl Kodo {
                 let chunk = chunk?;
                 let len = chunk.len();
                 let url = format!("{url}/{len}");
-                let ctx: serde_json::Value = client.post(url)
-                    .body(chunk)
-                    .send()
-                    .await?
-                    .json()
-                    .await?;
+                let ctx: serde_json::Value =
+                    client.post(url).body(chunk).send().await?.json().await?;
                 Ok::<_, reqwest_middleware::Error>((
                     Ctx {
                         index: i,
@@ -115,7 +113,8 @@ impl Kodo {
                 bail!("{result}")
             }
             _ => VideoPart {
-                title: path.as_ref()
+                title: path
+                    .as_ref()
                     .file_stem()
                     .map(|x| x.to_string_lossy().into_owned()),
                 filename: self.bucket.bili_filename,

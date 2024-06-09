@@ -1,21 +1,21 @@
-use std::collections::HashMap;
-use std::num::ParseIntError;
-use std::path::PathBuf;
-use std::str::FromStr;
-use clap::Parser;
-use clap_handler::{Context as ClapContext, Handler, handler};
-use anyhow::{bail, Context};
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use rand::Rng;
-use serde_json::Value;
-use tokio::fs;
-use ssup::{Client, Credential, CookieInfo, CookieEntry, VideoId};
-use ssup::constants::set_useragent;
-use ssup::video::{VideoCardItem, VideoPart};
 use crate::config::Config;
 use crate::context::CONTEXT;
 use crate::ffmpeg;
 use crate::template::VideoTemplate;
+use anyhow::{bail, Context};
+use clap::Parser;
+use clap_handler::{handler, Context as ClapContext, Handler};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use rand::Rng;
+use serde_json::Value;
+use ssup::constants::set_useragent;
+use ssup::video::{VideoCardItem, VideoPart};
+use ssup::{Client, CookieEntry, CookieInfo, Credential, VideoId};
+use std::collections::HashMap;
+use std::num::ParseIntError;
+use std::path::PathBuf;
+use std::str::FromStr;
+use tokio::fs;
 
 #[derive(Parser, Clone)]
 pub(crate) struct Args {
@@ -40,17 +40,22 @@ pub(crate) struct Args {
 impl Handler for Args {
     async fn handle_command(&mut self, ctx: &mut ClapContext) -> anyhow::Result<()> {
         // 初始化配置文件目录
-        let config_root = self.config_root.as_deref().and_then(|path| {
-            if path.is_absolute() {
-                Some(path.to_path_buf())
-            } else {
-                path.canonicalize().ok()
-            }
-        }).unwrap_or_else(|| directories_next::ProjectDirs::from("moe.mmf", "Yesterday17", "sswa")
-            .unwrap()
-            .config_dir()
-            .to_path_buf()
-        );
+        let config_root = self
+            .config_root
+            .as_deref()
+            .and_then(|path| {
+                if path.is_absolute() {
+                    Some(path.to_path_buf())
+                } else {
+                    path.canonicalize().ok()
+                }
+            })
+            .unwrap_or_else(|| {
+                directories_next::ProjectDirs::from("moe.mmf", "Yesterday17", "sswa")
+                    .unwrap()
+                    .config_dir()
+                    .to_path_buf()
+            });
         // 创建配置文件目录
         let _ = fs::create_dir_all(&config_root).await?;
         let _ = fs::create_dir(config_root.join("templates")).await;
@@ -154,9 +159,15 @@ pub(crate) struct SsUploadCommand {
 }
 
 /// 尝试导入用户凭据，失败时则以该名称创建新的凭据
-async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<&str>) -> anyhow::Result<Credential> {
-    let account_file = root.join("accounts")
-        .join(format!("{}.json", account.or(default_user).expect("account not specified")));
+async fn credential(
+    root: &PathBuf,
+    account: Option<&str>,
+    default_user: Option<&str>,
+) -> anyhow::Result<Credential> {
+    let account_file = root.join("accounts").join(format!(
+        "{}.json",
+        account.or(default_user).expect("account not specified")
+    ));
     if account_file.exists() {
         // 凭据存在，读取并返回
         let account = fs::read_to_string(&account_file).await?;
@@ -178,13 +189,21 @@ async fn credential(root: &PathBuf, account: Option<&str>, default_user: Option<
 
     // 凭据不存在，新登录
     let qrcode = Credential::get_qrcode().await?;
-    eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
+    eprintln!(
+        "请打开以下链接登录：\n{}",
+        qrcode["data"]["url"].as_str().unwrap()
+    );
     let credential = Credential::from_qrcode(qrcode).await?;
     fs::write(account_file, serde_json::to_string(&credential)?).await?;
     Ok(credential)
 }
 
-async fn upload_videos(client: &Client, progress: &MultiProgress, videos: &[(PathBuf, &str)], dry_run: bool) -> anyhow::Result<Vec<VideoPart>> {
+async fn upload_videos(
+    client: &Client,
+    progress: &MultiProgress,
+    videos: &[(PathBuf, &str)],
+    dry_run: bool,
+) -> anyhow::Result<Vec<VideoPart>> {
     let mut parts = Vec::with_capacity(videos.len());
 
     for (video, video_name) in videos {
@@ -197,7 +216,6 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, videos: &[(Pat
         let format = format!("{{spinner:.green}} [{{wide_bar:.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})");
         pb.set_style(ProgressStyle::default_bar().template(&format)?);
 
-
         if dry_run {
             pb.inc(total_size as u64);
             pb.finish();
@@ -205,7 +223,8 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, videos: &[(Pat
             pb.set_position(0);
 
             let (sx, mut rx) = tokio::sync::mpsc::channel(1);
-            let upload = client.upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
+            let upload = client
+                .upload_video_part(&video, total_size, sx, None /* TODO: Add part name */);
             tokio::pin!(upload);
             let result = loop {
                 tokio::select! {
@@ -232,7 +251,11 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, videos: &[(Pat
                     &video,
                     total_size,
                     sx,
-                    if video_name.is_empty() { None } else { Some(video_name.to_string()) },
+                    if video_name.is_empty() {
+                        None
+                    } else {
+                        Some(video_name.to_string())
+                    },
                 );
                 tokio::pin!(upload);
                 loop {
@@ -249,7 +272,7 @@ async fn upload_videos(client: &Client, progress: &MultiProgress, videos: &[(Pat
                             break;
                         }
                     }
-                };
+                }
             }
         }
     }
@@ -261,7 +284,9 @@ impl SsUploadCommand {
     /// 尝试导入视频模板
     async fn template(&self, root: &PathBuf) -> anyhow::Result<VideoTemplate> {
         fn set_variable<I>(key: &str, value: I)
-            where I: Into<Value> {
+        where
+            I: Into<Value>,
+        {
             if key.starts_with('$') || key.starts_with("ss_") {
                 eprintln!("跳过变量：{key}");
             } else {
@@ -269,7 +294,9 @@ impl SsUploadCommand {
             }
         }
 
-        let template = root.join("templates").join(format!("{}.toml", self.template));
+        let template = root
+            .join("templates")
+            .join(format!("{}.toml", self.template));
         if !template.exists() {
             bail!("Template not found!");
         }
@@ -298,9 +325,10 @@ impl SsUploadCommand {
                         let (key, value) = line.split_once('=').unwrap_or((&line, ""));
                         let key = key.trim();
                         let mut value = value.trim_matches(' ');
-                        if !self.keep_quote_pairs &&
-                            ((value.starts_with('"') && value.ends_with('"')) ||
-                                (value.starts_with('\'') && value.ends_with('\''))) {
+                        if !self.keep_quote_pairs
+                            && ((value.starts_with('"') && value.ends_with('"'))
+                                || (value.starts_with('\'') && value.ends_with('\'')))
+                        {
                             value = &value[1..value.len() - 1];
                         }
                         let value = value.replace("\\n", "\n");
@@ -320,7 +348,12 @@ impl SsUploadCommand {
 }
 
 #[handler(SsUploadCommand)]
-async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &Config, args: &Args) -> anyhow::Result<()> {
+async fn handle_upload(
+    this: &SsUploadCommand,
+    config_root: &PathBuf,
+    config: &Config,
+    args: &Args,
+) -> anyhow::Result<()> {
     let progress = indicatif::MultiProgress::new();
 
     // 加载模板
@@ -328,18 +361,43 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
 
     // 预定义变量
     CONTEXT.insert_sys("config_root".to_string(), config_root.to_string_lossy());
-    CONTEXT.insert_sys("file_name".to_string(), this.videos[0].file_name().unwrap().to_string_lossy());
-    CONTEXT.insert_sys("file_stem".to_string(), this.videos[0].file_stem().unwrap().to_string_lossy());
-    CONTEXT.insert_sys("file_pwd".to_string(), this.videos[0].canonicalize()?.parent().unwrap().to_string_lossy());
+    CONTEXT.insert_sys(
+        "file_name".to_string(),
+        this.videos[0].file_name().unwrap().to_string_lossy(),
+    );
+    CONTEXT.insert_sys(
+        "file_stem".to_string(),
+        this.videos[0].file_stem().unwrap().to_string_lossy(),
+    );
+    CONTEXT.insert_sys(
+        "file_pwd".to_string(),
+        this.videos[0]
+            .canonicalize()?
+            .parent()
+            .unwrap()
+            .to_string_lossy(),
+    );
 
     // 模板字符串编译
-    let tmpl = template.build(this.skip_level).with_context(|| "build template")?;
+    let tmpl = template
+        .build(this.skip_level)
+        .with_context(|| "build template")?;
 
     // 模板变量检查
-    template.validate(&tmpl, this.skip_level).with_context(|| "validate template")?;
+    template
+        .validate(&tmpl, this.skip_level)
+        .with_context(|| "validate template")?;
 
     // 用户登录检查
-    let credential = credential(config_root, args.account.as_deref(), template.default_user.as_deref().or(config.default_user.as_deref())).await?;
+    let credential = credential(
+        config_root,
+        args.account.as_deref(),
+        template
+            .default_user
+            .as_deref()
+            .or(config.default_user.as_deref()),
+    )
+    .await?;
 
     // 线路选择
     let client = {
@@ -351,11 +409,15 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     // 上传封面
     let cover = {
         let cover = if template.auto_cover() {
-            let duration = ffmpeg::get_duration(&this.videos[0]).with_context(|| "ffmpeg::get_duration")?;
+            let duration =
+                ffmpeg::get_duration(&this.videos[0]).with_context(|| "ffmpeg::get_duration")?;
             let rnd = rand::thread_rng().gen_range(0..duration);
             Some(ffmpeg::auto_cover(&this.videos[0], rnd)?)
         } else if this.scale_cover.unwrap_or(config.need_scale_cover()) {
-            Some(ffmpeg::scale_cover(&template.cover(&tmpl)?).with_context(|| "ffmpeg::scale_cover")?)
+            Some(
+                ffmpeg::scale_cover(&template.cover(&tmpl)?)
+                    .with_context(|| "ffmpeg::scale_cover")?,
+            )
         } else {
             None
         };
@@ -365,7 +427,10 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
         };
 
         let cover = if !this.dry_run {
-            client.upload_cover(cover_path).await.with_context(|| "upload cover")?
+            client
+                .upload_cover(cover_path)
+                .await
+                .with_context(|| "upload cover")?
         } else {
             "".into()
         };
@@ -374,9 +439,19 @@ async fn handle_upload(this: &SsUploadCommand, config_root: &PathBuf, config: &C
     };
 
     // 准备分P
-    let video_files: Vec<(PathBuf, &str)> = template.video_prefix(&tmpl).into_iter().map(|v| (v, ""))
-        .chain(this.videos.clone().into_iter().enumerate().map(|(i, v)| (v, this.names.get(i).map(|r| r.as_str()).unwrap_or(""))))
-        .chain(template.video_suffix(&tmpl).into_iter().map(|v| (v, ""))).collect();
+    let video_files: Vec<(PathBuf, &str)> = template
+        .video_prefix(&tmpl)
+        .into_iter()
+        .map(|v| (v, ""))
+        .chain(
+            this.videos
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|(i, v)| (v, this.names.get(i).map(|r| r.as_str()).unwrap_or(""))),
+        )
+        .chain(template.video_suffix(&tmpl).into_iter().map(|v| (v, "")))
+        .collect();
     // 检查文件存在
     for (video, _) in video_files.iter() {
         if !video.exists() {
@@ -431,9 +506,19 @@ pub(crate) struct SsAppendCommand {
 }
 
 #[handler(SsAppendCommand)]
-async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &Config, args: &Args) -> anyhow::Result<()> {
+async fn handle_append(
+    this: &SsAppendCommand,
+    config_root: &PathBuf,
+    config: &Config,
+    args: &Args,
+) -> anyhow::Result<()> {
     // 1. 获取待修改视频
-    let credential = credential(config_root, args.account.as_deref(), config.default_user.as_deref()).await?;
+    let credential = credential(
+        config_root,
+        args.account.as_deref(),
+        config.default_user.as_deref(),
+    )
+    .await?;
     let line = config.line().await?;
     let client = Client::new(line, credential);
     let mut video = client.get_video(&this.video_id).await?;
@@ -449,12 +534,24 @@ async fn handle_append(this: &SsAppendCommand, config_root: &PathBuf, config: &C
     let progress = indicatif::MultiProgress::new();
 
     // 4. 准备文件名
-    let videos: Vec<_> = this.videos.iter().enumerate()
-        .map(|(i, v)| (v.clone(), this.names.get(i).map(|s| s.as_str()).unwrap_or("")))
+    let videos: Vec<_> = this
+        .videos
+        .iter()
+        .enumerate()
+        .map(|(i, v)| {
+            (
+                v.clone(),
+                this.names.get(i).map(|s| s.as_str()).unwrap_or(""),
+            )
+        })
         .collect();
 
     // 5. 上传分P
-    let mut parts = upload_videos(&client, &progress, &videos, false).await?.into_iter().map(|p| p.into()).collect();
+    let mut parts = upload_videos(&client, &progress, &videos, false)
+        .await?
+        .into_iter()
+        .map(|p| p.into())
+        .collect();
     video.videos.append(&mut parts);
 
     // 6. 提交视频
@@ -493,8 +590,17 @@ pub(crate) struct SsViewCommand {
 }
 
 #[handler(SsViewCommand)]
-async fn handle_view(this: &SsViewCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
-    let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
+async fn handle_view(
+    this: &SsViewCommand,
+    config_root: &PathBuf,
+    config: &Config,
+) -> anyhow::Result<()> {
+    let credential = credential(
+        config_root,
+        this.account.as_deref(),
+        config.default_user.as_deref(),
+    )
+    .await?;
     let client = Client::auto(credential).await?;
     let video = client.get_video(&this.video_id).await?;
     println!("{:#?}", video);
@@ -528,7 +634,11 @@ pub(crate) struct SsCardCommand {
 }
 
 #[handler(SsCardCommand)]
-async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Config) -> anyhow::Result<()> {
+async fn handle_card(
+    this: &SsCardCommand,
+    config_root: &PathBuf,
+    config: &Config,
+) -> anyhow::Result<()> {
     fn parse_time_point(input: &str) -> Result<u64, ParseIntError> {
         if input.contains(':') {
             let mut result = 0;
@@ -543,7 +653,8 @@ async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Confi
 
     // parse file first
     let data = fs::read_to_string(&this.card_file).await?;
-    let time_points: Vec<(u64, &str)> = data.split('\n')
+    let time_points: Vec<(u64, &str)> = data
+        .split('\n')
         .into_iter()
         .filter_map(|line| {
             let line = line.trim();
@@ -554,7 +665,9 @@ async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Confi
             }
         })
         .map::<anyhow::Result<_>, _>(|line| {
-            let (start, content) = line.split_once(',').ok_or_else(|| anyhow::anyhow!("invalid line"))?;
+            let (start, content) = line
+                .split_once(',')
+                .ok_or_else(|| anyhow::anyhow!("invalid line"))?;
             let start = parse_time_point(start)?;
             Ok((start, content))
         })
@@ -562,7 +675,12 @@ async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Confi
         .with_context(|| "parse card file")?;
 
     // get video info
-    let credential = credential(config_root, this.account.as_deref(), config.default_user.as_deref()).await?;
+    let credential = credential(
+        config_root,
+        this.account.as_deref(),
+        config.default_user.as_deref(),
+    )
+    .await?;
     let client = Client::auto(credential).await?;
     let video = client.get_video(&this.video_id).await?;
 
@@ -593,12 +711,13 @@ async fn handle_card(this: &SsCardCommand, config_root: &PathBuf, config: &Confi
     cards[0].from = 0;
     // eprintln!("{:#?}", cards);
 
-    client.edit_card(video.aid, cid, cards, this.permanent).await?;
+    client
+        .edit_card(video.aid, cid, cards, this.permanent)
+        .await?;
 
     eprintln!("分段章节修改成功！");
     Ok(())
 }
-
 
 #[derive(Parser, Clone)]
 pub(crate) struct SsAccountListCommand;
@@ -627,17 +746,26 @@ pub(crate) struct SsAccountLoginCommand {
 
 #[handler(SsAccountLoginCommand)]
 async fn account_login(this: &SsAccountLoginCommand, config_root: &PathBuf) -> anyhow::Result<()> {
-    let account_path = config_root.join("accounts").join(format!("{}.json", this.name));
+    let account_path = config_root
+        .join("accounts")
+        .join(format!("{}.json", this.name));
     if account_path.exists() {
         bail!("帐号 {} 已存在！", this.name);
     }
 
     let credential = if this.cookies.is_empty() {
         let qrcode = Credential::get_qrcode().await?;
-        eprintln!("请打开以下链接登录：\n{}", qrcode["data"]["url"].as_str().unwrap());
+        eprintln!(
+            "请打开以下链接登录：\n{}",
+            qrcode["data"]["url"].as_str().unwrap()
+        );
         Credential::from_qrcode(qrcode).await?
     } else {
-        let cookies: Vec<_> = this.cookies.iter().filter_map(|c| CookieEntry::from_str(c).ok()).collect();
+        let cookies: Vec<_> = this
+            .cookies
+            .iter()
+            .filter_map(|c| CookieEntry::from_str(c).ok())
+            .collect();
         Credential::from_cookies(&CookieInfo::new(cookies)).await?
     };
 
@@ -654,8 +782,13 @@ pub(crate) struct SsAccountLogoutCommand {
 }
 
 #[handler(SsAccountLogoutCommand)]
-async fn account_logout(this: &SsAccountLogoutCommand, config_root: &PathBuf) -> anyhow::Result<()> {
-    let account_path = config_root.join("accounts").join(format!("{}.json", this.name));
+async fn account_logout(
+    this: &SsAccountLogoutCommand,
+    config_root: &PathBuf,
+) -> anyhow::Result<()> {
+    let account_path = config_root
+        .join("accounts")
+        .join(format!("{}.json", this.name));
     if !account_path.exists() {
         bail!("帐号 {} 不存在！", this.name);
     }

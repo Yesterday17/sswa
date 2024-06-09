@@ -1,5 +1,9 @@
+use crate::constants::{CONCURRENCY, USER_AGENT};
+use crate::uploader::utils::read_chunk;
+use crate::video::VideoPart;
 use anyhow::{anyhow, bail};
 use futures::{Stream, StreamExt, TryStreamExt};
+use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
@@ -8,11 +12,7 @@ use serde_json::{json, Value};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::time::Duration;
-use reqwest::header::{HeaderMap, HeaderValue};
 use tokio::sync::mpsc::Sender;
-use crate::constants::{CONCURRENCY, USER_AGENT};
-use crate::uploader::utils::read_chunk;
-use crate::video::VideoPart;
 
 pub struct Upos {
     client: ClientWithMiddleware,
@@ -77,8 +77,13 @@ impl Upos {
         })
     }
 
-    pub(crate) async fn upload_stream<P>(&self, file_path: P) -> anyhow::Result<impl Stream<Item=anyhow::Result<(Value, usize)>> + '_>
-        where P: AsRef<Path> {
+    pub(crate) async fn upload_stream<P>(
+        &self,
+        file_path: P,
+    ) -> anyhow::Result<impl Stream<Item = anyhow::Result<(Value, usize)>> + '_>
+    where
+        P: AsRef<Path>,
+    {
         let file = tokio::fs::File::open(file_path.as_ref()).await?;
 
         let total_size = file.metadata().await?.len();
@@ -118,7 +123,9 @@ impl Upos {
 
     // TODO
     pub async fn upload<P>(&self, path: P, sx: Sender<usize>) -> anyhow::Result<VideoPart>
-        where P: AsRef<Path> {
+    where
+        P: AsRef<Path>,
+    {
         let parts: Vec<_> = self
             .upload_stream(path.as_ref())
             .await?
@@ -128,8 +135,14 @@ impl Upos {
         self.get_ret_video_info(&parts, path).await
     }
 
-    pub(crate) async fn get_ret_video_info<P>(&self, parts: &[Value], path: P) -> anyhow::Result<VideoPart>
-        where P: AsRef<Path> {
+    pub(crate) async fn get_ret_video_info<P>(
+        &self,
+        parts: &[Value],
+        path: P,
+    ) -> anyhow::Result<VideoPart>
+    where
+        P: AsRef<Path>,
+    {
         let value = json!({
             "name": path.as_ref().file_name().and_then(OsStr::to_str),
             "uploadId": self.upload_id,
