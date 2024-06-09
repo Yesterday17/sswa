@@ -1,10 +1,10 @@
-use std::str::FromStr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::bail;
 use cookie::Cookie;
 use md5::{Digest, Md5};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::str::FromStr;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// 存储用户的登录信息
 #[derive(Serialize, Deserialize, Debug)]
@@ -67,7 +67,10 @@ impl Credential {
                     ..
                 } => {
                     if info.login_time == 0 {
-                        info.login_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+                        info.login_time = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs();
                     }
                     return Ok(info);
                 }
@@ -94,9 +97,7 @@ impl Credential {
             bail!("{:#?}", response)
         }
         match response.data {
-            ResponseValue::Value(data) => {
-                Ok(data["uname"].as_str().unwrap().to_string())
-            }
+            ResponseValue::Value(data) => Ok(data["uname"].as_str().unwrap().to_string()),
             _ => unreachable!(),
         }
     }
@@ -125,7 +126,12 @@ impl Credential {
 
     fn need_refresh(&self) -> bool {
         // Token过期前30天内重新获取
-        (self.login_time + self.token_info.expires_in as u64) < (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 30 * 86400)
+        (self.login_time + self.token_info.expires_in as u64)
+            < (SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                + 30 * 86400)
     }
 
     pub async fn refresh(&mut self, force: bool) -> anyhow::Result<bool> {
@@ -154,7 +160,10 @@ impl CookieInfo {
     }
 
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.cookies.iter().find(|entry| entry.name == key).map(|entry| entry.value.as_str())
+        self.cookies
+            .iter()
+            .find(|entry| entry.name == key)
+            .map(|entry| entry.value.as_str())
     }
 }
 
@@ -188,8 +197,12 @@ impl FromStr for CookieEntry {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.splitn(2, '=');
-        let name = parts.next().ok_or_else(|| anyhow::anyhow!("CookieEntry::from_str: no name"))?;
-        let value = parts.next().ok_or_else(|| anyhow::anyhow!("CookieEntry::from_str: no value"))?;
+        let name = parts
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("CookieEntry::from_str: no name"))?;
+        let value = parts
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("CookieEntry::from_str: no value"))?;
         Ok(Self {
             name: name.to_string(),
             value: value.to_string(),
@@ -216,7 +229,7 @@ pub(crate) struct ResponseData {
     pub(crate) code: i32,
     pub(crate) data: ResponseValue,
     pub(crate) message: String,
-    ttl: u8,
+    ttl: i32,
 }
 
 #[derive(Deserialize, Debug)]

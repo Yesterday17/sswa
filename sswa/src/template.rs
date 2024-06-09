@@ -1,13 +1,13 @@
+use crate::context::CONTEXT;
+use chrono::NaiveDateTime;
 use date_time_parser::{DateParser, TimeParser};
 use serde::Deserialize;
 use ssup::video::{Subtitle, Video, VideoPart};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::exit;
-use chrono::NaiveDateTime;
 use tinytemplate::instruction::PathStep;
 use tinytemplate::TinyTemplate;
-use crate::context::CONTEXT;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -19,7 +19,7 @@ pub(crate) struct VideoTemplate {
     /// 转载来源
     forward_source: Option<TemplateString>,
     /// 分区号
-    tid: u16,
+    tid: i64,
     /// 封面图片
     #[serde(default)]
     cover: TemplateString,
@@ -119,14 +119,15 @@ impl VideoTemplate {
                                 } else if skip_level == 2 {
                                     // 2级跳过变量输入，但产生报错
                                     panic!("变量未输入：{description}");
-                                } else /* if skip_level > 2 */ {
+                                } else
+                                /* if skip_level > 2 */
+                                {
                                     // 3级+跳过变量输入，且不报错
                                     default
                                 }
                             } else {
                                 default
                             };
-
 
                             CONTEXT.insert(variable.to_string(), ans);
                         }
@@ -160,7 +161,6 @@ impl VideoTemplate {
             }
             None => "未设置".to_string(),
         };
-
 
         for video in self.video_prefix.iter() {
             video.to_string(template)?;
@@ -208,7 +208,9 @@ impl VideoTemplate {
                     let date = DateParser::parse(&time);
                     let time = TimeParser::parse(&time);
                     match (date, time) {
-                        (Some(date), Some(time)) => Some(date.and_time(time).timestamp() - 60 * 60 * 8),
+                        (Some(date), Some(time)) => {
+                            Some(date.and_time(time).timestamp() - 60 * 60 * 8)
+                        }
                         _ => anyhow::bail!("定时投稿时间解析失败！"),
                     }
                 }
@@ -222,13 +224,16 @@ impl VideoTemplate {
         for tag in self.tags.iter() {
             let result = tag.to_string(template)?;
             let result = result.trim();
-            let results = result.split(',').filter_map(|s| {
-                if s.is_empty() {
-                    None
-                } else {
-                    Some(s.to_string())
-                }
-            }).collect::<Vec<String>>();
+            let results = result
+                .split(',')
+                .filter_map(|s| {
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
+                })
+                .collect::<Vec<String>>();
             tags.extend(results);
         }
         if tags.len() > 12 {
@@ -324,7 +329,8 @@ impl TemplateVariables {
                 TemplateVariable::Detailed(detailed) => {
                     if let Some(default) = &detailed.default {
                         // leak template string here for convenience
-                        template.add_unnamed_template(Box::leak(default.0.clone().into_boxed_str()))?;
+                        template
+                            .add_unnamed_template(Box::leak(default.0.clone().into_boxed_str()))?;
                     }
                 }
             }
@@ -332,7 +338,7 @@ impl TemplateVariables {
         Ok(())
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=(&str, &DetailedVariable)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &DetailedVariable)> {
         self.0.iter().filter_map(|(name, v)| match v {
             TemplateVariable::Simple(_) => None,
             TemplateVariable::Detailed(detailed) => Some((name.as_str(), detailed)),

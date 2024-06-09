@@ -6,15 +6,15 @@ use std::str::FromStr;
 #[derive(Serialize, Debug)]
 pub struct Video {
     /// 1 为自制，2 为转载
-    pub copyright: u8,
+    pub copyright: i64,
     pub source: String,
     /// 分区号
-    pub tid: u16,
+    pub tid: i64,
     /// 封面链接
     pub cover: String,
     pub title: String,
     /// 为 0
-    pub desc_format_id: u8,
+    pub desc_format_id: i64,
     /// 描述
     pub desc: String,
     /// 动态文本
@@ -80,7 +80,7 @@ pub struct EditVideo {
     pub aid: u64,
 
     /// 1 为自制，2 为转载
-    pub copyright: u8,
+    pub copyright: i64,
     pub source: String,
     /// 分区号
     pub tid: u16,
@@ -88,7 +88,7 @@ pub struct EditVideo {
     pub cover: String,
     pub title: String,
     /// 为 0
-    pub desc_format_id: u8,
+    pub desc_format_id: i64,
     /// 描述
     pub desc: String,
     /// 动态文本
