@@ -20,7 +20,7 @@ toml = "0.5.8"
 anyhow = "1"
 log = "0.4.14"
 
-requestty = "0.3.0"
+requestty = "0.4.0"
 indicatif = { version = "=0.17.0-rc.10", features = ["improved_unicode"] }
 regex = "1"
 rand = "0.8.4"
