@@ -35,7 +35,7 @@ impl Credential {
             .await?)
     }
 
-    fn sign(param: &str, app_sec: &str) -> String {
+    pub(crate) fn sign(param: &str, app_sec: &str) -> String {
         let mut hasher = Md5::new();
         hasher.update(format!("{param}{app_sec}"));
         format!("{:x}", hasher.finalize())

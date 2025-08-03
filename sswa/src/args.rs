@@ -467,7 +467,7 @@ async fn handle_upload(
     if !this.dry_run {
         let mut retry = config.submit_retry();
         loop {
-            match client.submit(&video).await {
+            match client.submit_by_app(&video).await {
                 Ok(_) => {
                     eprintln!("投稿成功！");
                     break;
