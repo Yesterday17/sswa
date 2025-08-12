@@ -1,5 +1,5 @@
 name: Build
-on: [ push ]
+on: [push]
 
 jobs:
   build:
@@ -24,10 +24,10 @@ jobs:
     continue-on-error: true
     steps:
       - name: Setup | Checkout
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v4
 
       - name: Setup | Cache Cargo
-        uses: actions/cache@v2.1.7
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -35,7 +35,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Setup | Cache Cargo Target
-        uses: actions/cache@v2.1.7
+        uses: actions/cache@v4
         with:
           path: target
           key: ${{ matrix.target }}-cargo-target
@@ -70,7 +70,7 @@ jobs:
           tar czvf ../../../${{ matrix.name }} sswa
           cd -
       - name: Deploy | Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}

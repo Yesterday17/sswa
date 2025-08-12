@@ -119,7 +119,7 @@ pub(crate) struct Template<'template> {
 
 impl<'template> Template<'template> {
     /// Create a Template from the given template string.
-    pub fn compile(text: &'template str) -> Result<Template> {
+    pub fn compile(text: &'template str) -> Result<Template<'template>> {
         Ok(Template {
             original_text: text,
             template_len: text.len(),
