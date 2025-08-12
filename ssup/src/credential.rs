@@ -219,9 +219,10 @@ impl ToString for CookieEntry {
 #[derive(Deserialize, Serialize, Debug)]
 pub(crate) struct TokenInfo {
     pub(crate) access_token: String,
-    expires_in: u32,
-    mid: u32,
+    expires_in: u64,
+    mid: u64,
     refresh_token: String,
+    region: Option<String>, // JP
 }
 
 #[derive(Deserialize, Debug)]
