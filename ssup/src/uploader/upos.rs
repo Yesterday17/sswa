@@ -2,6 +2,7 @@ use crate::constants::{CONCURRENCY, USER_AGENT};
 use crate::uploader::utils::read_chunk;
 use crate::video::VideoPart;
 use anyhow::{anyhow, bail};
+use bytes::Bytes;
 use futures::{Stream, StreamExt, TryStreamExt};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -77,6 +78,39 @@ impl Upos {
         })
     }
 
+    pub async fn upload_chunk(
+        &self,
+        chunk: Bytes,
+        current_chunk: usize,
+        chunks_num: usize,
+        start: usize,
+        total_size: u64,
+    ) -> anyhow::Result<Value> {
+        let len = chunk.len();
+        let params = Protocol {
+            upload_id: &self.upload_id,
+            chunks: chunks_num,
+            total: total_size,
+            chunk: current_chunk,
+            size: len,
+            part_number: current_chunk + 1,
+            start,
+            end: start + len,
+        };
+
+        let url = self.url.clone();
+        let response = self
+            .client
+            .put(url)
+            .query(&params)
+            .body(chunk)
+            .send()
+            .await?;
+        response.error_for_status()?;
+
+        Ok(json!({"partNumber": params.part_number, "eTag": "etag"}))
+    }
+
     pub(crate) async fn upload_stream<P>(
         &self,
         file_path: P,
@@ -90,32 +124,16 @@ impl Upos {
         let chunk_size = self.bucket.chunk_size;
         let chunks_num = (total_size as f64 / chunk_size as f64).ceil() as usize; // 获取分块数量
 
-        let client = &self.client;
-        let url = &self.url;
-        let upload_id = &*self.upload_id;
         let stream = read_chunk(file, chunk_size)
             .enumerate()
             .map(move |(i, chunk)| async move {
                 let chunk = chunk?;
                 let len = chunk.len();
-                let params = Protocol {
-                    upload_id,
-                    chunks: chunks_num,
-                    total: total_size,
-                    chunk: i,
-                    size: len,
-                    part_number: i + 1,
-                    start: i * chunk_size,
-                    end: i * chunk_size + len,
-                };
+                let part = self
+                    .upload_chunk(chunk, i, chunks_num, i * chunk_size, total_size)
+                    .await?;
 
-                let response = client.put(url).query(&params).body(chunk).send().await?;
-                response.error_for_status()?;
-
-                Ok::<_, anyhow::Error>((
-                    json!({"partNumber": params.chunk + 1, "eTag": "etag"}),
-                    len,
-                ))
+                Ok::<_, anyhow::Error>((part, len))
             })
             .buffer_unordered(*CONCURRENCY.read());
         Ok(stream)
@@ -135,11 +153,7 @@ impl Upos {
         self.get_ret_video_info(&parts, path).await
     }
 
-    pub(crate) async fn get_ret_video_info<P>(
-        &self,
-        parts: &[Value],
-        path: P,
-    ) -> anyhow::Result<VideoPart>
+    pub async fn get_ret_video_info<P>(&self, parts: &[Value], path: P) -> anyhow::Result<VideoPart>
     where
         P: AsRef<Path>,
     {
