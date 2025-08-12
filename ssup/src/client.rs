@@ -6,7 +6,7 @@ use anyhow::bail;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
 use reqwest_cookie_store::CookieStoreMutex;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -219,7 +219,7 @@ impl Client {
             payload
         };
 
-        let ret: ResponseData = reqwest::Client::builder()
+        let ret: Value = reqwest::Client::builder()
             .user_agent("Mozilla/5.0 BiliDroid/7.80.0 (bbcallen@gmail.com) os/android model/MI 6 mobi_app/android build/7800300 channel/bili innerVer/7800310 osVer/13 network/2")
             .timeout(Duration::new(60, 0))
             .build()?
@@ -231,7 +231,7 @@ impl Client {
             .json()
             .await?;
         log::info!("{:?}", ret);
-        if ret.code == 0 {
+        if ret["code"] == 0 {
             Ok(())
         } else {
             anyhow::bail!("{ret:?}")
