@@ -1,5 +1,5 @@
 use crate::client::Client;
-use crate::uploader::*;
+use crate::uploader::upos::Upos;
 use crate::video::VideoPart;
 use anyhow::bail;
 use futures::TryStreamExt;
@@ -14,19 +14,11 @@ use tokio::sync::mpsc::Sender;
 #[serde(rename_all = "lowercase")]
 pub enum Uploader {
     Upos,
-    Kodo,
-    Bos,
-    Gcs,
-    Cos,
 }
 
 impl Uploader {
     fn profile(&self) -> &'static str {
-        if let Uploader::Upos = self {
-            "ugcupos/bup"
-        } else {
-            "ugcupos/bupfetch"
-        }
+        "ugcupos/bup"
     }
 }
 
@@ -45,7 +37,7 @@ impl UploadLine {
         &self.probe_url
     }
 
-    pub(crate) async fn pre_upload<T, P>(
+    pub async fn pre_upload<T, P>(
         &self,
         client: &Client,
         file_path: P,
@@ -113,14 +105,6 @@ impl UploadLine {
                 }
                 upos.get_ret_video_info(&parts, file_path.as_ref()).await
             }
-            Uploader::Kodo => {
-                log::debug!("Uploading with kodo");
-                let bucket = self
-                    .pre_upload(client, file_path.as_ref(), total_size)
-                    .await?;
-                Kodo::from(bucket).await?.upload(file_path, sx).await
-            }
-            _ => unimplemented!(),
         }
     }
 
@@ -166,15 +150,6 @@ impl UploadLine {
             };
         }
         Ok(line_chosen)
-    }
-
-    pub fn kodo() -> Self {
-        Self {
-            os: Uploader::Kodo,
-            probe_url: "//up-na0.qbox.me/crossdomain.xml".to_string(),
-            query: "bucket=bvcupcdnkodobm&probe_version=20211012".to_string(),
-            cost: 0,
-        }
     }
 
     pub fn bda2() -> Self {

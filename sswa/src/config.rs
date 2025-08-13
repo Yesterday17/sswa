@@ -36,7 +36,6 @@ impl Config {
     pub(crate) async fn line(&self) -> anyhow::Result<UploadLine> {
         let line = self.line.as_deref().unwrap_or("auto");
         let line = match line {
-            "kodo" => UploadLine::kodo(),
             "bda2" => UploadLine::bda2(),
             "ws" => UploadLine::ws(),
             "qn" => UploadLine::qn(),
