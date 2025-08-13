@@ -37,30 +37,23 @@ impl UploadLine {
         &self.probe_url
     }
 
-    pub async fn pre_upload<T, P>(
+    pub async fn pre_upload<T, S>(
         &self,
         client: &Client,
-        file_path: P,
+        file_name: S,
         total_size: usize,
     ) -> anyhow::Result<T>
     where
         T: DeserializeOwned,
-        P: AsRef<Path>,
+        S: AsRef<str>,
     {
-        let file_name = file_path
-            .as_ref()
-            .file_name()
-            .ok_or("No filename")
-            .unwrap()
-            .to_str();
-
         let query: serde_json::Value = json!({
             "r": self.os,
             "profile": self.os.profile(),
             "ssl": 0u8,
             "version": "2.10.4",
             "build": 2100400,
-            "name": file_name,
+            "name": file_name.as_ref(),
             "size": total_size,
         });
         log::debug!("Pre uploading with query: {}", query);
@@ -91,7 +84,11 @@ impl UploadLine {
             Uploader::Upos => {
                 log::debug!("Uploading with upos");
                 let bucket = self
-                    .pre_upload(client, file_path.as_ref(), total_size)
+                    .pre_upload(
+                        client,
+                        file_path.as_ref().file_name().unwrap().to_str().unwrap(),
+                        total_size,
+                    )
                     .await?;
                 let upos = Upos::from(bucket).await?;
 

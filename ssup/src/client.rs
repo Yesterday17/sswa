@@ -122,6 +122,10 @@ impl Client {
         Ok(part)
     }
 
+    pub fn upload_line(&self) -> &UploadLine {
+        &self.line
+    }
+
     /// 查看现有投稿信息
     pub async fn get_video(&self, id: &VideoId) -> anyhow::Result<EditVideo> {
         let id = match id {

@@ -3,7 +3,7 @@ use crate::uploader::utils::read_chunk;
 use crate::video::VideoPart;
 use anyhow::{anyhow, bail};
 use bytes::Bytes;
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{Stream, StreamExt};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
@@ -13,7 +13,6 @@ use serde_json::{json, Value};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::time::Duration;
-use tokio::sync::mpsc::Sender;
 
 pub struct Upos {
     client: ClientWithMiddleware,
@@ -137,20 +136,6 @@ impl Upos {
             })
             .buffer_unordered(*CONCURRENCY.read());
         Ok(stream)
-    }
-
-    // TODO
-    pub async fn upload<P>(&self, path: P, sx: Sender<usize>) -> anyhow::Result<VideoPart>
-    where
-        P: AsRef<Path>,
-    {
-        let parts: Vec<_> = self
-            .upload_stream(path.as_ref())
-            .await?
-            .map(|union| Ok::<_, reqwest_middleware::Error>(union?.0))
-            .try_collect()
-            .await?;
-        self.get_ret_video_info(&parts, path).await
     }
 
     pub async fn get_ret_video_info<P>(&self, parts: &[Value], path: P) -> anyhow::Result<VideoPart>
