@@ -10,7 +10,6 @@ use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::ffi::OsStr;
 use std::path::Path;
 use std::time::Duration;
 
@@ -138,12 +137,16 @@ impl Upos {
         Ok(stream)
     }
 
-    pub async fn get_ret_video_info<P>(&self, parts: &[Value], path: P) -> anyhow::Result<VideoPart>
+    pub async fn get_ret_video_info<S>(
+        &self,
+        parts: &[Value],
+        file_name: S,
+    ) -> anyhow::Result<VideoPart>
     where
-        P: AsRef<Path>,
+        S: AsRef<str>,
     {
         let value = json!({
-            "name": path.as_ref().file_name().and_then(OsStr::to_str),
+            "name": file_name.as_ref(),
             "uploadId": self.upload_id,
             "biz_id": self.bucket.biz_id,
             "output": "json",
@@ -162,10 +165,7 @@ impl Upos {
             bail!("{}", res)
         }
         Ok(VideoPart {
-            title: path
-                .as_ref()
-                .file_stem()
-                .map(|p| p.to_string_lossy().to_string()),
+            title: Some(file_name.as_ref().to_string()),
             filename: Path::new(&self.bucket.upos_uri)
                 .file_stem()
                 .ok_or(anyhow!("no file stem found"))?

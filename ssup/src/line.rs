@@ -83,13 +83,8 @@ impl UploadLine {
         match self.os {
             Uploader::Upos => {
                 log::debug!("Uploading with upos");
-                let bucket = self
-                    .pre_upload(
-                        client,
-                        file_path.as_ref().file_name().unwrap().to_str().unwrap(),
-                        total_size,
-                    )
-                    .await?;
+                let file_name = file_path.as_ref().file_name().unwrap().to_str().unwrap();
+                let bucket = self.pre_upload(client, file_name, total_size).await?;
                 let upos = Upos::from(bucket).await?;
 
                 let mut parts = Vec::new();
@@ -100,7 +95,7 @@ impl UploadLine {
                     parts.push(part);
                     sx.send(size).await?;
                 }
-                upos.get_ret_video_info(&parts, file_path.as_ref()).await
+                upos.get_ret_video_info(&parts, file_name).await
             }
         }
     }
